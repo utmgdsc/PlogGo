@@ -22,7 +22,7 @@ def register():
     hashed_password = generate_password_hash(password)
 
     # create and save the user
-    user = User(username=username, password=password)
+    user = User(username=username, password=hashed_password)
     user.save_to_db()
 
     return jsonify(message="User registered successfully"), 201
@@ -44,9 +44,9 @@ def login():
     return jsonify(access_token=access_token), 200
 
 # protected route
-@auth_bp.route('/protected', methods=['POST'])
-@jwt_required()
-def register_litter():
+# @auth_bp.route('/protected', methods=['POST'])
+# @jwt_required()
+# def register_litter():
 
-    return None
+#     return None
 
