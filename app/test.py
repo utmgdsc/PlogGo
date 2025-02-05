@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_pymongo import PyMongo
 
+# setup a basic Flask server
 app = Flask(__name__)
 app.config['MONGO_URI']="mongodb://localhost:27017/test_ploggo"
 mongo=PyMongo(app)

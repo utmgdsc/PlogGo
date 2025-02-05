@@ -15,6 +15,6 @@ class User:
             'password': self.password,
         })
 
-    # find user in database by username
+    @staticmethod
     def find_by_username(username):
         return mongo.db.users.find_one({'username': username})
