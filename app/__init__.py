@@ -2,7 +2,6 @@ from flask import Flask
 from flask_jwt_extended import JWTManager
 from flask_pymongo import PyMongo
 from .auth import auth_bp
-import os
 
 # setup the flask-jwt-extended extension
 jwt = JWTManager()
@@ -24,7 +23,7 @@ def create_app(testing=False):
     else:
         app.config.from_object('app.config.Config')
 
-    jwt.init_app(app) # initialzie jwt extension
+    jwt.init_app(app) # initialize jwt extension
     mongo.init_app(app) # intialize mongodb connection
 
     # register the blueprints

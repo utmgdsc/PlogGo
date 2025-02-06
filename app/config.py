@@ -3,7 +3,7 @@ import os
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY')
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
-    MONGO_URI = 'mongodb://localhost:27017/test_ploggo'
+    MONGO_URI = os.getenv('MONGODB_DATABASE_URI')
 
 class TestConfig:
     SECRET_KEY = 'test_secret_key'
