@@ -175,3 +175,4 @@ cython_debug/
 
 # Environment variables
 .env
+app/config.py
