@@ -1,14 +1,22 @@
-from flask import Flask
-from flask_pymongo import PyMongo
+from pymongo import MongoClient
+from pymongo.errors import ConnectionFailure
 
-# setup a basic Flask server
-app = Flask(__name__)
-app.config['MONGO_URI']="mongodb://localhost:27017/test_ploggo"
-mongo=PyMongo(app)
+# Replace with your Mongo URI
+uri = "mongodb+srv://nfldty:GAx4aJuymwNUKOgE@ploggo.qm3fx.mongodb.net/?retryWrites=true&w=majority&appName=PlogGo"
 
-# perform a test query
 try:
-    mongo.db.users.find_one() # forces a connection
-    print("Connected succesfully to MongoDB!")
-except Exception as e:
-    print(f"Connection failed: {e}")
+    # Create a client and connect to MongoDB
+    client = MongoClient(uri)
+    
+    # Test the connection
+    client.admin.command('ping')
+    print("Connection successful!")
+    
+    # Access a database (if exists)
+    db = client.get_database("PlogGo")  # Replace with your database name
+
+    print(f"Connected to the database: {db.name}")
+    
+except ConnectionFailure as e:
+    print(f"Could not connect to MongoDB: {e}")
+
