@@ -3,7 +3,7 @@ from pymongo.errors import ConnectionFailure
 from flask_pymongo import PyMongo
 
 # Replace with your Mongo URI
-uri = "mongodb+srv://nfldty:GAx4aJuymwNUKOgE@ploggo.qm3fx.mongodb.net/?retryWrites=true&w=majority&appName=PlogGo"
+uri = "insert_uri_here"
 
 try:
     # Create a client and connect to MongoDB
