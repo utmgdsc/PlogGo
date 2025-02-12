@@ -1,21 +1,25 @@
 import pytest
 from flask import json
-from app_legacy import create_app, mongo
-# from app.models import User
+from app import app, db
+from dotenv import load_dotenv
+
+load_dotenv()
 
 @pytest.fixture
 def client():
-    # setup flask test client
-    app = create_app(testing=True)
+    app.config["TESTING"] = True
     client = app.test_client()
+
+    # Cleanup before running tests
+    db.user_authentication.delete_many({'auth_email': 'testuser@gmail.com'})
+
     yield client
 
-    # clean up - remove test user from database (if necessary)
-    mongo.db.users.delete_many({'email': 'testuser@gmail.com'})
-    
+    # Cleanup after tests
+    db.user_authentication.delete_many({'auth_email': 'testuser@gmail.com'})
+
 def test_register(client):
-    # test user registration
-    response = client.post('/register', json= {
+    response = client.post('/register', json={
         'email': 'testuser@gmail.com',
         'password': 'testpassword'
     })
@@ -23,62 +27,33 @@ def test_register(client):
     assert response.status_code == 201
     assert b"User registered successfully" in response.data
 
-    # verify the user exists in the database
-    user = mongo.db.users.find_one({'email': 'testuser@gmail.com'})
+    user = db.user_authentication.find_one({'auth_email': 'testuser@gmail.com'})  # Fixed collection name
     assert user is not None
-    assert user['email'] == 'testuser@gmail.com'
+    assert user['auth_email'] == 'testuser@gmail.com'
 
 def test_register_duplicate_username(client):
-    # register first user
-    client.post('/register', json={
-        'email': 'testuser@gmail.com',
-        'password': 'testpassword'
-    })
+    client.post('/register', json={'email': 'testuser@gmail.com', 'password': 'testpassword'})
 
-    # try to register the same user again
-    response = client.post('/register', json={
-        'email': 'testuser@gmail.com',
-        'password': 'testpassword'
-    })
+    response = client.post('/register', json={'email': 'testuser@gmail.com', 'password': 'testpassword'})
 
     assert response.status_code == 400
-    assert b"Username already exists" in response.data
+    assert b"Email already exists" in response.data
 
 def test_login(client):
-    # register a user first
-    client.post('/register', json={
-        'email': 'testuser@gmail.com',
-        'password': 'testpassword'
-    })
+    client.post('/register', json={'email': 'testuser@gmail.com', 'password': 'testpassword'})
 
-    # try to login using the same username and password
-    response = client.post('/login', json={
-        'email': 'testuser@gmail.com', 
-        'password': 'testpassword'
-    })
+    response = client.post('/login', json={'email': 'testuser@gmail.com', 'password': 'testpassword'})
 
     assert response.status_code == 200
-    assert b"access_token" in response.data
-    token = json.loads(response.data)['access_token']
 
-    # verify that the token is a valid JWT token
-    assert token is not None
+    data = json.loads(response.data)
+    assert "access_token" in data
+    assert data["access_token"] is not None
 
 def test_login_invalid_credentials(client):
-    # register a user first
-    client.post('/register', json={
-        'email': 'testuser@gmail.com',
-        'password': 'testpassword'
-    })
+    client.post('/register', json={'email': 'testuser@gmail.com', 'password': 'testpassword'})
 
-    # try to login using the wrong password
-    response = client.post('/login', json={
-        'email': 'testuser@gmail.com',
-        'password': 'wrongpassword'
-    })
+    response = client.post('/login', json={'email': 'testuser@gmail.com', 'password': 'wrongpassword'})
 
     assert response.status_code == 401
     assert b"Invalid email or password" in response.data
-
-
-
