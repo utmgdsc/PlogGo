@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # create blueprint object
@@ -8,7 +8,7 @@ auth_bp = Blueprint('auth', __name__)
 # registration route
 @auth_bp.route('/register', methods=['GET','POST'])
 def register():
-    from app import mongo
+    from app_legacy import mongo
     # data= request.get_json()
     # email = data.get('email')
     # password = data.get('password')
@@ -34,7 +34,7 @@ def register():
 # login route
 @auth_bp.route('/login', methods=['GET','POST'])
 def login():
-    from app import mongo
+    from app_legacy import mongo
     # data = request.get_json()
     # email = data.get('email')
     # password = data.get('password')
@@ -69,6 +69,5 @@ def login():
 # @auth_bp.route('/protected', methods=['POST'])
 # @jwt_required()
 # def register_litter():
-
 #     return None
 

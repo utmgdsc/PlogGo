@@ -1,4 +1,4 @@
-from app import create_app 
+from app_legacy import create_app 
 
 # create an instance of the Flask app
 app = create_app()

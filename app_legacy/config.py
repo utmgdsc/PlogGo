@@ -16,4 +16,3 @@ class TestConfig:
     SECRET_KEY = 'test_secret_key'
     JWT_SECRET_KEY = 'test_jwt_secret_key'
     MONGO_URI = 'mongodb://localhost:27017/test_ploggo'
-   

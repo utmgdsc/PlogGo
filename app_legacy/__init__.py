@@ -1,7 +1,7 @@
 from flask import Flask
 from flask_jwt_extended import JWTManager
 from flask_pymongo import PyMongo
-from .auth import auth_bp
+from .auth_legacy import auth_bp
 
 # setup the flask-jwt-extended extension
 jwt = JWTManager()

@@ -1,6 +1,6 @@
 import pytest
 from flask import json
-from app import create_app, mongo
+from app_legacy import create_app, mongo
 # from app.models import User
 
 @pytest.fixture
