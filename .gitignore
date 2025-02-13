@@ -183,3 +183,9 @@ cython_debug/
 .pypirc
 
 .DS_Store
+
+# yolov11-log
+runs/
+
+# yolov11 model
+yolo11n.pt
