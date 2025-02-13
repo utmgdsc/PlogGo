@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
 from dotenv import load_dotenv
-from classifier import classify_litter
+from models import classify_litter
 import os
 import base64
 from flask_jwt_extended import JWTManager
