@@ -1,11 +1,14 @@
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
 from dotenv import load_dotenv
+from flask_cors import CORS
 from classifier import classify_litter
 import os
 import base64
+from datetime import datetime, timezone
 
 app = Flask(__name__)
+CORS(app)
 
 # Load environment variables
 load_dotenv()
@@ -79,9 +82,43 @@ def store_litter():
 
 
 # Store user session history (distance, activities, etc.)
-@app.route('/session/history', methods=['POST'])
+@app.route('/session', methods=['POST'])
 def store_session_history():
-    pass
+    try:
+        # Retrieve data from the request body (JSON)
+        data = request.json
+        if not data:
+            return jsonify({'error': 'No data received'}), 400
+
+        # Validate if required fields are present (adjust based on your requirements)
+        required_fields = ['routes', 'distancesTravelled', 'steps', 'timeStart', 'timeEnd','elapsedTime', 'userid', 'sessionid']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing {field} field'}), 400
+
+        # Assuming session data looks like: { "distance": 123.4, "activities": ["running", "cycling"] }
+        print(data)
+        session_data = {
+            "userid": data['userid'],
+            "sessionid": data['sessionid'],
+            "startTime": datetime.fromtimestamp(data['timeStart']//1000, tz=timezone.utc),
+            "endTime": datetime.fromtimestamp(data['timeEnd']//1000, tz=timezone.utc),
+            "elapsedTime": data['elapsedTime'],
+            "routes": data['routes'],
+            "distancesTravelled": data['distancesTravelled'],
+            "steps": data['steps'],
+        }
+
+        # Insert the session data into MongoDB collection
+        result = db['session'].insert_one(session_data)
+        print('inserted', result.inserted_id, 'to session collection')
+        # Return a success response with inserted session ID
+        return jsonify({'message': 'data stored successfully'}), 200
+
+    except Exception as e:
+        print("Error storing session history:", e)  # Log the error
+        return jsonify({'error': str(e)}), 500
+    
 
 
 # Fetch current user session history, user needs to be authenticated
