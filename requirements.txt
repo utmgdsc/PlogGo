@@ -2,4 +2,11 @@ flask
 flask-cors
 flask-bcrypt
 flask-jwt-extended
-flask-sqlalchemy
+ultralytics
+numpy 
+matplotlib
+torch
+torchvision
+tqdm
+pymongo 
+python-dotenv
