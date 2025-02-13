@@ -1,6 +1,6 @@
 import pytest
 from flask import json
-from app import app, db
+from backend.app import app, db
 from dotenv import load_dotenv
 
 load_dotenv()
