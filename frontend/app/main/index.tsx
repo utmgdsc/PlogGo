@@ -9,7 +9,7 @@ export default function Index() {
         alignItems: "center",
       }}
     >
-      <Text>This is the Camera Page.</Text>
+      <Text>This is the Home Page.</Text>
     </View>
   );
 }

@@ -27,7 +27,7 @@ export default function Index() {
   const currentProgress = progressValues[selectedOption];
 
   let [fontsLoaded] = useFonts({
-    'Roboto': require('../assets/fonts/Roboto-Regular.ttf'),
+    'Roboto': require('../../assets/fonts/Roboto-Regular.ttf'),
   });
 
   if (!fontsLoaded) {

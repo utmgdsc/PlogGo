@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { TouchableOpacity } from 'react-native';
+import { createStackNavigator } from '@react-navigation/stack';
 
 export default function AppLayout() {
   return (
