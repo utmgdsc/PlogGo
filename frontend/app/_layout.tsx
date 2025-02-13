@@ -66,6 +66,16 @@ export default function AppLayout() {
           headerTitle: 'Profile', // Display "Profile" in the header
         }}
       />
+    <Tabs.Screen
+        name="tracking"
+        options={{
+          title: 'Live Tracking',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="locate-outline" size={size} color={color} />
+          ),
+          headerTitle: 'Live Tracking',
+        }}
+      />
     </Tabs>
   );
 }
