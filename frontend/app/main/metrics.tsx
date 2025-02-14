@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CircularProgress, AnimatedCircularProgress } from 'react-native-circular-progress';
-import { useFonts } from "expo-font";
-import AppLoading from "expo-app-loading";
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
+
+SplashScreen.preventAutoHideAsync();
 
 export default function Index() {
   // top banner will have title and settings icon,
@@ -26,14 +28,22 @@ export default function Index() {
   const [selectedOption, setSelectedOption] = useState<'Steps' | 'Litter'>('Steps');
   const currentProgress = progressValues[selectedOption];
 
-  let [fontsLoaded] = useFonts({
-    'Roboto': require('../../assets/fonts/Roboto-Regular.ttf'),
-  });
-
-  if (!fontsLoaded) {
-    return <AppLoading />;
-  }
-
+  const [loaded, error] = useFonts({
+      'Poppins-Black': require('../../assets/fonts/Poppins-Black.ttf'),
+      'Poppins-Light': require('../../assets/fonts/Poppins-Light.ttf'),
+      'OpenSans-Regular': require('../../assets/fonts/OpenSans-Regular.ttf'),
+      'Poppins-Bold': require('../../assets/fonts/Poppins-Bold.ttf'),
+    });
+  
+    useEffect(() => {
+      if (loaded || error) {
+        SplashScreen.hideAsync();
+      }
+    }, [loaded, error]);
+  
+    if (!loaded && !error) {
+      return null;
+    }
   return (
     <View style={styles.container}>
       {/* Banner: Steps or Litter Selection */}
@@ -136,7 +146,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   specialText:{
-    fontFamily: 'Roboto',
+    fontFamily: 'Poppins-Light',
     fontSize: 30,
     color: '#FFBF00',
     marginTop: 10,
@@ -144,7 +154,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   text: {
-    fontFamily: 'Roboto',
+    fontFamily: 'Poppins-Light',
     fontWeight: 'bold',
     fontSize: 20,
     color: '#000',

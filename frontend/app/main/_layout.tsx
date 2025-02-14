@@ -2,15 +2,17 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { TouchableOpacity } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { useNavigation } from 'expo-router';
 
 export default function AppLayout() {
+  const navigation = useNavigation<any>();
   return (
     <Tabs
       screenOptions={{
         headerTitleAlign: 'center',
         headerShadowVisible: false,
         headerRight: () => (
-          <TouchableOpacity onPress={() => console.log('Settings pressed')}>
+          <TouchableOpacity onPress={() => navigation.navigate('index')}>
             <Ionicons name="settings" size={24} color="black" style={{ marginRight: 15 }} />
           </TouchableOpacity>
         ),
@@ -19,7 +21,7 @@ export default function AppLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="home"
         options={{
           title: '',
           tabBarIcon: ({ color, size }) => (
