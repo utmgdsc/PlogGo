@@ -1,14 +1,22 @@
 from ultralytics import YOLO
+import torch
 
-# load pre-trained YOLOv11 model
-model = YOLO("yolo11n.pt")
+def main():
+    # check if cuda cores are available for training
+    print("GPU is compatible to be used", torch.cuda.is_available())
 
-# train the model on TACO dataset
-model.train(data="/Users/hwey/Desktop/projects/PlogGo/models/data.yaml", epochs=50, imgsz=640, batch=16)
+    # load pre-trained YOLOv11 model
+    model = YOLO("yolo11n.pt")
 
-# validate the trained model 
-metrics = model.val()
-print("Validation Metrics:", metrics)
+    # train the model on TACO dataset
+    model.train(data="D://projects/PlogGo/models/data.yaml", epochs=50, imgsz=416, batch=8, device=0)
 
-# save best model
-model.export(format="tflite")
+    # validate the trained model 
+    metrics = model.val()
+    print("Validation Metrics:", metrics)
+
+    # save best model
+    model.export(format="tflite")
+
+if __name__=='__main__':
+    main()
