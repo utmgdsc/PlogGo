@@ -1,13 +1,12 @@
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
 from dotenv import load_dotenv
-from models import classify_litter
+from models import detect_litter
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import timedelta, datetime, timezone
 import os
 import base64
-from flask_jwt_extended import JWTManager
-from flask_jwt_extended import create_access_token
-from werkzeug.security import generate_password_hash, check_password_hash
-import os
 import certifi
 
 # initalize Flask app
@@ -23,6 +22,7 @@ db = client["PlogGo"]
 
 # set up JWT
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1) # set time limit for token
 jwt = JWTManager(app)
 
 ### all the routes will expect a JSON body ###
@@ -49,15 +49,31 @@ def login():
         access_token = create_access_token(identity=email)
         return jsonify(access_token=access_token), 200
 
-
+# logout route
 @app.route('/logout', methods=['POST'])
+@jwt_required()
 def logout():
-    pass
+    jti = get_jwt()["jti"] # get unique JWT ID
+    exp = get_jwt()["exp"] # get the expiration time
 
+    # store the token in database
+    expired_tokens = db['token_blacklist']
+    expired_tokens.insert_one({
+        "jti": jti, 
+        "exp": datetime.fromtimestamp(exp, tz=timezone.utc)
+    })
+    
+    return jsonify(message="Successfully logged out"), 200
+
+@jwt.token_in_blocklist_loader
+def check_if_token_is_blacklisted(jwt_header, jwt_payload):
+    jti=jwt_payload["jti"]
+    expired_tokens = db['token_blacklist']
+    return expired_tokens.find_one({"jti": jti}) is not None
 
 # registration route
 @app.route('/register', methods=['POST'])
-def register():    
+def register():   
     # retrieve email and password submission
     data = request.get_json()
     email = data.get('email')
