@@ -10,6 +10,7 @@ SplashScreen.preventAutoHideAsync();
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [repeatedPassword, setRepeatedPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const navigation = useNavigation<any>();
 
@@ -44,10 +45,10 @@ export default function Login() {
     }
   };
   
-  const signUp = () => {
+  const Login = () => {
     try {
-        // navigate to signup.tsx
-        navigation.navigate('signup');
+        // navigate to login.tsx
+        navigation.navigate('index');
       console.log('Success');
     } catch (error) {
       console.log('Error signing up...', error);
@@ -56,8 +57,8 @@ export default function Login() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Log</Text>
-      <Text style={styles.title}>In!</Text>
+      <Text style={styles.title}>Sign</Text>
+      <Text style={styles.title}>Up!</Text>
       <View style = {styles.emptyspace}/>
       <View style = {styles.emptyspace}/>
       <View style = {styles.emptyspace}/>
@@ -72,13 +73,19 @@ export default function Login() {
         onChangeText={setPassword}
         value={password}
         placeholder="Password"
+      />
+      <TextInput
+        style={styles.input}
+        onChangeText={setRepeatedPassword}
+        value={repeatedPassword}
+        placeholder="Confirm Password"
         secureTextEntry
       />
       <View style = {styles.emptyspace}/>
-      <Text style = {styles.loginbutton} onPress={signIn}>Log in</Text>
+      <Text style = {styles.loginbutton} onPress={signIn}>Sign up</Text>
       <View style = {styles.emptyspace}/>
       <Text style={{ marginTop: 20 }}>
-        Don't have an account? <Text style = {styles.smallButton} onPress={signUp}>Sign Up</Text></Text>
+        Already have an account? <Text style = {styles.smallButton} onPress={Login}>Log in</Text></Text>
     </View>
   );
 }
@@ -119,14 +126,14 @@ const styles = StyleSheet.create({
   input: {
     fontFamily: 'Poppins-Light',
     borderRadius: 15,
+    backgroundColor: '#f5f2f2',
     width: '80%',
-    backgroundColor:`#f5f2f2`,
     height: 50,
     padding: 5,
     paddingLeft: 20,
     borderWidth: 1,
     borderColor: '#ccc',
-    marginTop: 5,
+    marginTop: -5,
     marginBottom: 20,
   },
 });
