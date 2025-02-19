@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
 from dotenv import load_dotenv
-from models import detect_litter
+# from models import detect_litter
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import timedelta, datetime, timezone
@@ -57,8 +57,7 @@ def logout():
     exp = get_jwt()["exp"] # get the expiration time
 
     # store the token in database
-    expired_tokens = db['token_blacklist']
-    expired_tokens.insert_one({
+    db.token_blacklist.insert_one({
         "jti": jti, 
         "exp": datetime.fromtimestamp(exp, tz=timezone.utc)
     })
@@ -68,8 +67,12 @@ def logout():
 @jwt.token_in_blocklist_loader
 def check_if_token_is_blacklisted(jwt_header, jwt_payload):
     jti=jwt_payload["jti"]
-    expired_tokens = db['token_blacklist']
-    return expired_tokens.find_one({"jti": jti}) is not None
+    return db.token_blacklist.find_one({"jti": jti}) is not None
+
+@app.route('/protected', methods=['GET'])
+@jwt_required()
+def protected():
+    return jsonify({"message": "Access granted"}), 200
 
 # registration route
 @app.route('/register', methods=['POST'])
