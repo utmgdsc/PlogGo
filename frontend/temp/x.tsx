@@ -6,11 +6,11 @@ import * as SplashScreen from 'expo-splash-screen';
 import {useEffect} from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
+const backendUrl = process.env.EXPO_BASE_URL;
 SplashScreen.preventAutoHideAsync();
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [repeatedPassword, setRepeatedPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const navigation = useNavigation<any>();
 
@@ -31,13 +31,26 @@ export default function Login() {
     return null;
   }
 
-
-  const signIn = () => {
+  const signIn = async () => {
     try {
-        // TODO auth for later
-        // check if username and password are filled in
-
         // navigate to home.tsx and reveal navigation bar
+        const response = await fetch(`${backendUrl}/login`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              email: username,
+              password: password
+            }),
+            headers: {
+              "Content-type": "application/json; charset=UTF-8"
+            }
+          });
+        
+        if(!response.ok){
+          throw new Error('Network response was not ok');
+        }
+        const data = response.json();
+
         navigation.navigate('main');
       console.log('Success');
     } catch (error) {
@@ -45,10 +58,10 @@ export default function Login() {
     }
   };
   
-  const Login = () => {
+  const signUp = () => {
     try {
-        // navigate to login.tsx
-        navigation.navigate('index');
+        // navigate to signup.tsx
+        navigation.navigate('signup');
       console.log('Success');
     } catch (error) {
       console.log('Error signing up...', error);
@@ -57,8 +70,8 @@ export default function Login() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Sign</Text>
-      <Text style={styles.title}>Up!</Text>
+      <Text style={styles.title}>Log</Text>
+      <Text style={styles.title}>In!</Text>
       <View style = {styles.emptyspace}/>
       <View style = {styles.emptyspace}/>
       <View style = {styles.emptyspace}/>
@@ -73,19 +86,13 @@ export default function Login() {
         onChangeText={setPassword}
         value={password}
         placeholder="Password"
-      />
-      <TextInput
-        style={styles.input}
-        onChangeText={setRepeatedPassword}
-        value={repeatedPassword}
-        placeholder="Confirm Password"
         secureTextEntry
       />
       <View style = {styles.emptyspace}/>
-      <Text style = {styles.loginbutton} onPress={signIn}>Sign up</Text>
+      <Text style = {styles.loginbutton} onPress={signIn}>Log in</Text>
       <View style = {styles.emptyspace}/>
       <Text style={{ marginTop: 20 }}>
-        Already have an account? <Text style = {styles.smallButton} onPress={Login}>Log in</Text></Text>
+        Don't have an account? <Text style = {styles.smallButton} onPress={signUp}>Sign Up</Text></Text>
     </View>
   );
 }
@@ -126,14 +133,14 @@ const styles = StyleSheet.create({
   input: {
     fontFamily: 'Poppins-Light',
     borderRadius: 15,
-    backgroundColor: '#f5f2f2',
     width: '80%',
+    backgroundColor:`#f5f2f2`,
     height: 50,
     padding: 5,
     paddingLeft: 20,
     borderWidth: 1,
     borderColor: '#ccc',
-    marginTop: -5,
+    marginTop: 5,
     marginBottom: 20,
   },
 });
