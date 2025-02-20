@@ -2,12 +2,15 @@ import { StyleSheet, Text, TextInput, View } from 'react-native'
 import React, { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext';
 import { useFonts } from 'expo-font';
-import { SplashScreen } from 'expo-router';
+import { SplashScreen, useNavigation } from 'expo-router';
+import axios from 'axios';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [hidden, setHidden] = useState(true);
   const { onLogin, onRegister } = useAuth();
+  const navigation = useNavigation<any>();
 
   const [loaded, error] = useFonts({
       'Poppins-Black': require('../../assets/fonts/Poppins-Black.ttf'),
@@ -27,25 +30,16 @@ const Login = () => {
     }
 
   const login =  async () => {
-    if (onLogin) {
-      const result = await onLogin(email, password);
-      if (result.error && result.error) {
+      const result = await onLogin!(email, password);
+      console.log(result);
+      if (result && result.error) {
         alert(result.msg);
       }
-    } else {
-      alert('Login function is not available.');
-    }
   }
 
   const register =  async () => {
-    if (onRegister) {
-      const result = await onRegister(email, password);
-      if (result.error && result.error) {
-        alert(result.msg);
-      }
-    } else {
-      alert('Login function is not available.');
-    }
+    // navigate to Signup.tsx
+    navigation.navigate('Signup');
   }
 
   return (
@@ -57,16 +51,16 @@ const Login = () => {
           <View style = {styles.emptyspace}/>
           <TextInput
             style={styles.input}
-            onChangeText={setEmail}
+            onChangeText={(text: string) => setEmail(text)}
             value={email}
             placeholder="Email"
           />
           <TextInput
             style={styles.input}
-            onChangeText={setPassword}
+            onChangeText={(text: string) => setPassword(text)}
             value={password}
             placeholder="Password"
-            secureTextEntry
+            secureTextEntry={hidden}
           />
           <View style = {styles.emptyspace}/>
           <Text style = {styles.loginbutton} onPress={login}>Log in</Text>

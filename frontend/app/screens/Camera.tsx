@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
-import { Camera } from "expo-camera";
+import { Camera as ExpoCamera } from "expo-camera";
 
-export default function Index() {
+export default function Camera() {
   const [borderColor, setBorderColor] = useState("green");
   const [photo, setPhoto] = useState(null);
 

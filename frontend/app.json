@@ -10,15 +10,22 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "config" : {
-        "useNonExemptEncryption" : false
+      "config": {
+        "useNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSAppTransportSecurity": { 
+          "NSAllowsArbitraryLoads": true 
+        }
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.anonymous.ploggofront",
+      "usesCleartextTraffic": true
     },
     "web": {
       "bundler": "metro",

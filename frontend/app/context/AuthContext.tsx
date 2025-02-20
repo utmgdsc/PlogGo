@@ -9,8 +9,8 @@ interface AuthProps{
     onLogout?: () => Promise<any>;
 }
 
-const TOKEN_KEY = 'token';
-export const API_URL = process.env.EXPO_BASE_URL;
+const TOKEN_KEY = 'JWT_SECRET_KEY';
+export const API_URL = process.env.EXPO_PUBLIC_BASE_URL;
 const AuthContext = createContext<AuthProps>({});
 
 export const useAuth = () => {
@@ -55,9 +55,11 @@ export const AuthProvider = ({children}: any) => {
     };
 
     const login = async (email: string, password: string) => {
+        console.log(`${API_URL}/login`)
         try {
-            const result = await axios.post(`${API_URL}/login`, { email, password });
-            
+            console.log("trying to login")
+            const result = await axios.post(`${API_URL}/login`, {email, password });
+            console.log(result)
             setAuthState({
                 token: result.data.token,
                 authenticated: true

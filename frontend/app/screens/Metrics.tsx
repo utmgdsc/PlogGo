@@ -7,7 +7,7 @@ import * as SplashScreen from 'expo-splash-screen';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function Index() {
+export default function Metrics() {
   // top banner will have title and settings icon,
   // middle will have banner with two selections, steps or litter
   // then will have a circular progress bar for the selected metric
