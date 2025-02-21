@@ -31,7 +31,6 @@ export default function SimulatedTracking() {
   const [steps, setSteps] = useState(0);
   const [errorMsg, setErrorMsg] = useState(null);
   const indexRef = useRef(0);
-
   const averageStepDistance = 0.8; // In meters
 
   const simulatedPath = [
@@ -45,6 +44,13 @@ export default function SimulatedTracking() {
     // { latitude: 37.78035, longitude: -122.4324 },
     // { latitude: 37.78965, longitude: -122.4324 },
   ];
+
+  const [mapRegion, setMapRegion] = useState({
+    latitude: simulatedPath[0].latitude,
+    longitude: simulatedPath[0].longitude,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  });
 
   useEffect(() => {
     let intervalId = null;
