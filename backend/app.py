@@ -38,11 +38,10 @@ def login():
 
     # check if the username and password match
     user_profile = db.user_authentication.find_one({'auth_email': email})
-
-    # retrieve password from database
-    hashed_password = user_profile.get('auth_password', '')
     
-    if not user_profile or not check_password_hash(hashed_password, password):
+    if not user_profile :
+        return jsonify(message="Invalid email or password"), 401
+    elif user_profile and not check_password_hash(user_profile.get('auth_password', ''), password):
         return jsonify(message="Invalid email or password"), 401
     else:
         # create JWT token
