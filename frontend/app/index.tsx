@@ -24,7 +24,8 @@ export default function Index() {
     );
 }
 
-// Main App Tabs
+import { View } from "react-native";
+
 const MainTabs = () => {
     const { onLogout } = useAuth();
     return (
@@ -34,21 +35,21 @@ const MainTabs = () => {
                 headerShadowVisible: false,
                 tabBarActiveTintColor: '#37eb34',
                 tabBarInactiveTintColor: 'gray',
-                // add logout button to right side of header,
+                tabBarShowLabel: false,
                 headerRight: () => (
                     <Button
                         onPress={onLogout}
                         title="Logout"
                         color="#37eb34"
                     />
-                )
+                ),
             }}
         >
             <Tab.Screen
                 name="Home"
                 component={Home}
                 options={{
-                    title: '',
+                    title: 'Home',
                     tabBarIcon: ({ color, size }) => (
                         <Ionicons name="home-outline" size={size} color={color} />
                     ),
@@ -58,7 +59,7 @@ const MainTabs = () => {
                 name="Metrics"
                 component={Metrics}
                 options={{
-                    title: '',
+                    title: 'Metrics',
                     tabBarIcon: ({ color, size }) => (
                         <Ionicons name="analytics" size={size} color={color} />
                     ),
@@ -68,9 +69,26 @@ const MainTabs = () => {
                 name="Camera"
                 component={Camera}
                 options={{
-                    title: '',
+                    title: 'Camera',
                     tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="camera-outline" size={size} color={color} />
+                        <View
+                            style={{
+                                width: 70, // Adjust the size of the circle
+                                height: 70,
+                                backgroundColor: '#37eb34', // Green circle
+                                borderRadius: 35, // Makes it a circle
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                marginBottom: 20, // Moves it slightly up
+                                shadowColor: "#000",
+                                shadowOffset: { width: 0, height: 4 },
+                                shadowOpacity: 0.3,
+                                shadowRadius: 5,
+                                elevation: 5, // For Android shadow
+                            }}
+                        >
+                            <Ionicons name="camera-outline" size={40} color="white" />
+                        </View>
                     ),
                 }}
             />
@@ -78,7 +96,7 @@ const MainTabs = () => {
                 name="Social"
                 component={Social}
                 options={{
-                    title: '',
+                    title: 'Social',
                     tabBarIcon: ({ color, size }) => (
                         <Ionicons name="clipboard-outline" size={size} color={color} />
                     ),
@@ -88,7 +106,7 @@ const MainTabs = () => {
                 name="Profile"
                 component={Profile}
                 options={{
-                    title: '',
+                    title: 'Profile',
                     tabBarIcon: ({ color, size }) => (
                         <Ionicons name="person-outline" size={size} color={color} />
                     ),
@@ -97,6 +115,8 @@ const MainTabs = () => {
         </Tab.Navigator>
     );
 };
+
+
 
 // Layout: Handles Authentication & Main App Navigation
 export const Layout = () => {
@@ -109,7 +129,7 @@ export const Layout = () => {
                     name="MainTabs" 
                     component={MainTabs} 
                     options={{
-                        headerShown: false, // Hides stack header since tabs already have headers
+                        headerShown: false,
                     }}
                 />
             ) : (
