@@ -9,10 +9,7 @@ interface AuthProps{
     onLogout?: () => Promise<any>;
 }
 
-const TOKEN_KEY = process.env.EXPO_PUBLIC_JWT_SECRET_KEY;
-if (!TOKEN_KEY) {
-    throw new Error('No JWT secret key provided');
-}
+const TOKEN_KEY = 'JWT_SECRET_KEY';
 export const API_URL = process.env.EXPO_PUBLIC_BASE_URL;
 const AuthContext = createContext<AuthProps>({});
 

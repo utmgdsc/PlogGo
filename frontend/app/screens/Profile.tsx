@@ -1,104 +1,15 @@
-import { Text, View, StyleSheet } from "react-native";
-import axios from "axios";
-import { useEffect, useState } from "react";
-import { API_URL } from "../context/AuthContext";
-import { Image } from 'expo-image';
-import { useFonts } from "expo-font";
-import { SplashScreen } from "expo-router";
+import { Text, View } from "react-native";
 
 export default function Profile() {
-
-  // uncomment when backend is ready
-  // const [data, setData] = useState({});
-  // useEffect(() => {
-  //   fetchData();
-  // }
-  //   ,[]);
-
-  // const fetchData = async () => {
-  //   try {
-  //     const response = await axios.get(`${API_URL}/user`);
-  //     console.log(response.data);
-  //     setData(response.data);
-  //   } catch (error) {
-  //     const data = {
-  //   pfp: "https://www.pngitem.com/pimgs/m/146-1468479_my-profile-icon-blank-profile-picture-circle-hd.png",
-  //   name: "John Doe",
-  //   description: "I love to recycle!",
-  //   badges: [
-  //     { icon: "♻️", title: "Recycler" },
-  //     { icon: "🌱", title: "Eco-Warrior" },
-  //     { icon: "🌍", title: "Earth Lover" },
-  //   ],
-  //   streak: 5,
-  // };
-  //   };
-  // };
-
-  // load fonts
-  const [loaded, error] = useFonts({
-        'Poppins-Black': require('../../assets/fonts/Poppins-Black.ttf'),
-        'Poppins-Light': require('../../assets/fonts/Poppins-Light.ttf'),
-        'OpenSans-Regular': require('../../assets/fonts/OpenSans-Regular.ttf'),
-        'Poppins-Bold': require('../../assets/fonts/Poppins-Bold.ttf'),
-        'Poppins-Medium': require('../../assets/fonts/Poppins-Medium.ttf'),
-      });
-    
-      useEffect(() => {
-        if (loaded || error) {
-          SplashScreen.hideAsync();
-        }
-      }, [loaded, error]);
-    
-      if (!loaded && !error) {
-        return null;
-      }
-
-  const data = {
-    pfp: "https://www.pngitem.com/pimgs/m/146-1468479_my-profile-icon-blank-profile-picture-circle-hd.png",
-    name: "John Doe",
-    description: "I love to recycle!",
-    badges: [
-      { icon: "♻️", title: "Recycler" },
-      { icon: "🌱", title: "Eco-Warrior" },
-      { icon: "🌍", title: "Earth Lover" },
-    ],
-    streak: 5,
-  };
-
   return (
-    <View style={styles.container}>
-      {/* Profile Section */}
-      <View style={styles.profile}>
-        <Image style={styles.pfp} source={{ uri: data.pfp }} contentFit="cover" />
-        <Text style={styles.name}>{data.name}</Text>
-        <Text style={styles.description}>{data.description}</Text>
-        <Text style={styles.editProfile}>Edit</Text>
-      </View>
-
-       {/* Badges Section */}
-       <View style={styles.badges}>
-        <Text style={styles.badgesTitle}>Badges</Text>
-        <View style={styles.badgeContainer}>
-          {data.badges.map((badge, index) => (
-            <View key={index} style={styles.badgeItem}>
-              <View style={styles.badgeCircle}>
-                <Text style={styles.badgeIcon}>{badge.icon}</Text>
-              </View>
-              <Text style={styles.badgeText}>{badge.title}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Streak Section */}
-      <View style={styles.streak}>
-        <View style={styles.streakTextContainer}>
-          <Text style={styles.streakCount}>{data.streak}</Text>
-          <Text style={styles.streakDays}>  Streak days</Text>
-        </View>
-        <Text style={styles.streakEmoji}>🔥</Text>
-      </View>
+    <View
+      style={{
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+    >
+      <Text>This is the Profile Page.</Text>
     </View>
   );
 }
