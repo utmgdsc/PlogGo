@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Blueprint, Flask, request, jsonify
 from pymongo import MongoClient
 from dotenv import load_dotenv
 from flask_cors import CORS
@@ -7,11 +7,13 @@ import os
 import base64
 from datetime import datetime, timezone
 
-from flask_jwt_extended import JWTManager
+from flask_jwt_extended import JWTManager,get_jwt_identity, jwt_required
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import certifi
+
+api = Blueprint('api', __name__, url_prefix='/api')
 
 # initalize Flask app
 app = Flask(__name__)
@@ -22,7 +24,7 @@ load_dotenv()
 
 # initialize MongoDB connection
 uri = os.getenv("MONGO_URI")
-client = MongoClient(uri, tlsCAFile=certifi.where())
+client = MongoClient(uri)
 db = client["PlogGo"]
 
 # set up JWT
@@ -34,17 +36,17 @@ jwt = JWTManager(app)
 
 # Authentication
 # login route
-@app.route('/login', methods=['POST'])
+@api.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
     email = data.get('email')
     password = data.get('password')
 
     # check if the username and password match
-    user_profile = db.user_authentication.find_one({'auth_email': email})
+    user_profile = db.user.find_one({'email': email})
 
     # retrieve password from database
-    hashed_password = user_profile.get('auth_password', '')
+    hashed_password = user_profile.get('password', '')
     
     if not user_profile or not check_password_hash(hashed_password, password):
         return jsonify(message="Invalid email or password"), 401
@@ -54,13 +56,13 @@ def login():
         return jsonify(access_token=access_token), 200
 
 
-@app.route('/logout', methods=['POST'])
+@api.route('/logout', methods=['POST'])
 def logout():
     pass
 
 
 # registration route
-@app.route('/register', methods=['POST'])
+@api.route('/register', methods=['POST'])
 def register():    
     # retrieve email and password submission
     data = request.get_json()
@@ -80,31 +82,50 @@ def register():
 
 
 # Update user information (Profile), user needs to be authenticated
-@app.route('/user/update', methods=['PUT'])
+@api.route('/user', methods=['PUT'])
+@jwt_required()
 def update_user():
     pass
 
+@api.route('/badge', methods=['GET'])
+@jwt_required()
+def get_badge():
+    badges_id = db.user.find_one({'email': get_jwt_identity()}).badges
+    badges = []
+    for badge_id in badges_id:
+        badge = db.badge.find_one({'_id': badge_id})
+        badges.append(badge)
+    return jsonify({'badges': badges}), 200
+
 
 # Fetching user data from db, user needs to be authenticated
-@app.route('/user/data', methods=['GET'])
+@api.route('/user/data', methods=['GET'])
+@jwt_required()
 def get_user_data():
-    pass
+        return jsonify({'message': get_jwt_identity()}), 200
 
 
-# Get current daily challenge (pick randomly 1 challenge from challenges db), user needs to be authenticated
-@app.route('/daily-challenge', methods=['GET'])
+@api.route('/milestone', methods=['GET'])
+def get_milestone():
+    user = db.user.find_one({'email': get_jwt_identity()})
+    milestone = {'total_steps': user.total_steps, 'total_distance': user.total_distance, 'total_time': user.total_time}
+    return jsonify({'milestone': milestone}), 200
+
+# Get current daily challenge (pick randomly 1 challenge from challenges db)
+@api.route('/daily-challenge', methods=['GET'])
 def get_daily_challenge():
-    pass
+    challenge = db.challenges.aggregate([{"$sample": {"size": 1}}])
+    return jsonify({'challenge': challenge}), 200
 
 
 # Return the classification of the litter
-@app.route('/classify-litter', methods=['POST'])
+@api.route('/classify-litter', methods=['POST'])
 def classify_litter():
     pass
 
 
 # Store the litter data in the database
-@app.route('/store-litter', methods=['POST'])
+@api.route('/store-litter', methods=['POST'])
 def store_litter():
     try:
         data = request.json  # Expecting JSON body
@@ -122,10 +143,12 @@ def store_litter():
 
 
 # Store user session history (distance, activities, etc.)
-@app.route('/session', methods=['POST'])
+@api.route('/session', methods=['POST'])
+@jwt_required()
 def store_session_history():
     try:
         # Retrieve data from the request body (JSON)
+        user = db.user.find_one({'email': get_jwt_identity()})
         data = request.json
         if not data:
             return jsonify({'error': 'No data received'}), 400
@@ -139,8 +162,6 @@ def store_session_history():
         # Assuming session data looks like: { "distance": 123.4, "activities": ["running", "cycling"] }
         print(data)
         session_data = {
-            "userid": data['userid'],
-            "sessionid": data['sessionid'],
             "startTime": datetime.fromtimestamp(data['timeStart']//1000, tz=timezone.utc),
             "endTime": datetime.fromtimestamp(data['timeEnd']//1000, tz=timezone.utc),
             "elapsedTime": data['elapsedTime'],
@@ -148,7 +169,23 @@ def store_session_history():
             "distancesTravelled": data['distancesTravelled'],
             "steps": data['steps'],
         }
-
+        
+        user.total_steps += data['steps']
+        user.total_distance += data['distancesTravelled']
+        user.total_time += data['elapsedTime']
+        
+        # Check badges
+        new_badges = db.badge.find({"steps_required": {"$lte": data['steps']}})
+        badge_ids = [badge["_id"] for badge in new_badges]
+        print("New badges:", badge_ids)
+        if badge_ids:
+            db.users.update_one(
+                {"_id": data["user_id"]}, 
+                {"$addToSet": {"badges": {"$each": badge_ids}}}  # Add badges without duplicates
+            )
+            print("Badges awarded!")
+        
+        
         # Insert the session data into MongoDB collection
         result = db['session'].insert_one(session_data)
         print('inserted', result.inserted_id, 'to session collection')
@@ -159,43 +196,6 @@ def store_session_history():
         print("Error storing session history:", e)  # Log the error
         return jsonify({'error': str(e)}), 500
     
-
-
-# Fetch current user session history, user needs to be authenticated
-@app.route('/session/history', methods=['GET'])
-def get_session_history():
-    pass
-
-
-# Fetch posts from another user
-@app.route('/social-media/posts', methods=['GET'])
-def fetch_social_media_posts():
-    pass
-
-
-# Create a new post for the current user
-@app.route('/social-media/posts', methods=['POST'])
-def create_social_media_post():
-    pass
-
-
-# Fetch badges from the current user, user doesn't need to be authenticated
-@app.route('/user/badges', methods=['GET'])
-def fetch_user_badges():
-    pass
-
-
-# Fetch user milestones (completed challenges, etc), user doesn't need to be authenticated
-@app.route('/user/milestones', methods=['GET'])
-def fetch_user_milestones():
-    pass
-
-
-# Fetch user profile
-@app.route('/user/<id>', methods=['GET'])
-def get_user(id):
-    pass
-
 
 if __name__ == '__main__':
     app.run(debug=True)

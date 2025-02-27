@@ -103,8 +103,6 @@ export default function SimulatedTracking() {
         console.log("Steps:", steps);
         // Send POST request with data to the server after tracking ends
         const data = {
-          userid: -1 /* TODO, get user id from JWT TOKEN / local storage*/,
-          sessionid: -1, /* TODO, get session id from JWT TOKEN / local storage  */
           routes: route,
           distancesTravelled: totalDist,
           steps: Math.floor(totalDist / averageStepDistance),
@@ -112,7 +110,7 @@ export default function SimulatedTracking() {
           timeStart: startTime,
           timeEnd: endTime
         };
-  
+        
         try {
           const response = await fetch("http://10.0.2.2:5000/session", {
             method: "POST",
