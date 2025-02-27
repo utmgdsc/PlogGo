@@ -7,6 +7,7 @@ interface AuthProps{
     onRegister?: (email: string, password: string) => Promise<any>;
     onLogin?: (email: string, password: string) => Promise<any>;
     onLogout?: () => Promise<any>;
+    getToken?: () => Promise<string | null>;
 }
 
 const TOKEN_KEY = 'JWT_SECRET_KEY';
@@ -22,7 +23,7 @@ export const AuthProvider = ({children}: any) => {
         token: string | null; 
         authenticated: boolean | null;
     }>({
-        token: null, 
+        token: "", 
         authenticated: null
     });
 
@@ -57,11 +58,9 @@ export const AuthProvider = ({children}: any) => {
     const login = async (email: string, password: string) => {
         console.log(`${API_URL}/login`)
         try {
-            console.log("trying to login")
             const result = await axios.post(`${API_URL}/login`, {email, password });
-            console.log(result)
             setAuthState({
-                token: result.data.token,
+                token: result.data.access_token,
                 authenticated: true
             });
 
@@ -85,10 +84,15 @@ export const AuthProvider = ({children}: any) => {
         });
     };
 
+    const getJWTToken = async () => {
+        return authState.token;
+    }
+
     const value = {
         onRegister: register,
         onLogin: login,
         onLogout: logout,
+        getToken: getJWTToken,
         authState
     };
 
