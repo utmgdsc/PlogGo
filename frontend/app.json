@@ -15,8 +15,10 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.ploggo.ploggofront"
     },
+    
     "web": {
       "bundler": "metro",
       "output": "static",
