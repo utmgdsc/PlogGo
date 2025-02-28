@@ -1,142 +1,156 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, Button, Text } from "react-native";
-import MapView, { Marker, Polyline } from "react-native-maps";
+import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
 
-const DEBUG = true; // Set this to false to use real location
-
-const haversine = (coords1, coords2) => {
-  const R = 6371e3; // Earth's radius in meters
-  const φ1 = (coords1.latitude * Math.PI) / 180;
-  const φ2 = (coords2.latitude * Math.PI) / 180;
-  const Δφ = ((coords2.latitude - coords1.latitude) * Math.PI) / 180;
-  const Δλ = ((coords2.longitude - coords1.longitude) * Math.PI) / 180;
-
-  const a =
-    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-    Math.cos(φ1) * Math.cos(φ2) *
-    Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c; // Distance in meters
-};
-
-export default function SimulatedTracking() {
+export default function RealTracking() {
   const [location, setLocation] = useState(null);
-  const [route, setRoute] = useState([]);
   const [isTracking, setIsTracking] = useState(false);
   const [startTime, setStartTime] = useState(null);
   const [endTime, setEndTime] = useState(null);
-  const [totalDistance, setTotalDistance] = useState(0);
-  const [steps, setSteps] = useState(0);
   const [errorMsg, setErrorMsg] = useState(null);
-  const indexRef = useRef(0);
+  const [locationSubscription, setLocationSubscription] = useState(null);
 
-  const averageStepDistance = 0.8; // In meters
+  const socketRef = useRef(null); // WebSocket reference
+  const sessionId = useRef(null); // session ID, initially null
 
-  const simulatedPath = [
-    { latitude: 37.78825, longitude: -122.4324 },
-    { latitude: 37.78855, longitude: -122.4324 },
-    { latitude: 37.78885, longitude: -122.4324 },
-    { latitude: 37.78915, longitude: -122.4324 },
-    // { latitude: 37.78945, longitude: -122.4324 },
-    // { latitude: 37.78975, longitude: -122.4324 },
-    // { latitude: 37.79005, longitude: -122.4324 },
-    // { latitude: 37.78035, longitude: -122.4324 },
-    // { latitude: 37.78965, longitude: -122.4324 },
-  ];
-
+  // hook on mount / unmount
   useEffect(() => {
-    let intervalId = null;
-
-    if (isTracking) {
-      if (DEBUG) {
-        console.log("Tracking started in debug mode");
-
-        intervalId = setInterval(() => {
-          const currentIndex = indexRef.current;
-          
-          if (currentIndex < simulatedPath.length) {
-            const currentLocation = simulatedPath[currentIndex];
-            setLocation(currentLocation);
-            setRoute((prev) => [...prev, currentLocation]);
-
-            // Calculate total distance using haversine for each new point
-            setTotalDistance((prev) => {
-              if (prev === 0) return 0; // Don't calculate if the route is empty
-              return prev + haversine(route[route.length - 1], currentLocation);
-            });
-
-            indexRef.current += 1;
-          } else {
-            clearInterval(intervalId);
-            setEndTime(Date.now()); // Stop time tracking
-          }
-        }, 1000);
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setErrorMsg("Permission to access location was denied.");
+        return;
       }
-    } else {
-      clearInterval(intervalId);
-    }
+    })();
 
-    return () => clearInterval(intervalId);
-  }, [isTracking]);
+    return () => {
+      // Cleanup WebSocket on unmount (if the connection is open)
+      if (socketRef.current) {
+        socketRef.current.close();
+      }
+    };
+  }, []);
 
   const toggleTracking = async () => {
-    console.log("Toggling tracking");
-    console.log("isTracking", isTracking);
-    console.log("route", route);
-    console.log("startTime", startTime);
-    console.log("endTime", endTime);
-    console.log("totalDistance", totalDistance);
-    console.log("steps", steps);    
+    try {
+    console.log("start tracking")
     if (isTracking) {
-        const totalDist = route.reduce((acc, _, i) => {
-          if (i === 0) return acc;
-          return acc + haversine(route[i - 1], route[i]);
-        }, 0);
+      console.log("istracking")
+      // Stop the WebSocket connection
+      if (socketRef.current) {
+        // Send end time before closing WebSocket
+        const endTimestamp = Date.now();
+        socketRef.current.send(
+          JSON.stringify({
+            type: "end_time",
+            sessionId: sessionId.current, // Send session ID along with end time
+            endTime: endTimestamp,
+          })
+        );
+        socketRef.current.close();
+      }
+
+      if (locationSubscription) {
+        locationSubscription.remove();
+        setLocationSubscription(null);
+      }
+      setEndTime(Date.now()); // Stop time tracking
+      // Reset session ID when tracking stops
+      sessionId.current = null;
+
+    } else {
+      console.log("else")
+      // Generate new session ID when tracking starts
+      
+      sessionId.current = uuidv4(); // Generate a new session ID
+      console.log("finish uid")
+      setStartTime(Date.now());
+      setLocation(null);
+      console.log("opening ws")
+      // Open WebSocket connection
+      fetch("https://64cb-2607-fea8-4e26-9100-e9de-a8ad-fd3a-35cc.ngrok-free.app")
+      socketRef.current = new WebSocket("ws://10.0.0.188:5000/"); // Replace with actual server WebSocket URL
+      console.log("opened ws")
+      socketRef.current.onopen = () => {
   
-        // Set final values for total distance, elapsed time, and steps
-        setTotalDistance(totalDist);
-        const elapsedTime = (endTime - startTime) / 1000; // Time in seconds
-        setSteps(Math.round(totalDist / averageStepDistance)); // Steps based on distance and step length
-        console.log("Total distance:", totalDist);
-        console.log("Steps:", steps);
-        // Send POST request with data to the server after tracking ends
-        const data = {
-          routes: route,
-          distancesTravelled: totalDist,
-          steps: Math.floor(totalDist / averageStepDistance),
-          elapsedTime: elapsedTime,
-          timeStart: startTime,
-          timeEnd: endTime
-        };
-        
-        try {
-          const response = await fetch("http://10.0.2.2:5000/session", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(data),
-          });
-          if (response.ok) {
-            console.log("Data successfully sent to server");
-          } else {
-            console.log("Error sending data to server");
-          }
-        } catch (error) {
-          console.error("Error with the POST request:", error);
+        console.log("WebSocket connection opened");
+
+        // Send JWT token after connection is open
+        const token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc0MDYyNzMxNywianRpIjoiOGZmYWIxMTYtYjk2YS00OGYyLWI0MWUtM2IyZDNiNTY4NDdmIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6ImFAZ21haWwuY29tIiwibmJmIjoxNzQwNjI3MzE3LCJjc3JmIjoiOWRhODNmNTUtMmJhYi00Yzc4LWI4YmEtYjE3ZGQwMjUyMzkzIiwiZXhwIjoxNzQwNjI4MjE3fQ.ENMMEf5SR4oKp9QN401U552cFlh6YOy-gVAYZo5opyk";  // Replace this with your actual JWT token
+        socketRef.current.send(
+          JSON.stringify({
+            type: "authenticate",
+            token: token,
+            sessionId: sessionId.current,  // Send session ID when WebSocket is opened
+          })
+        );
+       
+        // Send the start time when WebSocket opens
+        socketRef.current.send(
+          JSON.stringify({
+            type: "start_time",
+            sessionId: sessionId.current,  // Include session ID when sending start time
+            startTime: startTime,
+          })
+        );
+      };
+
+      socketRef.current.onerror = (error) => {
+        console.log("WebSocket error:", error);
+      };
+
+      socketRef.current.onclose = () => {
+        console.log("WebSocket connection closed");
+        // Optionally, send end time when WebSocket closes (if not already sent in the `toggleTracking` function)
+        if (!endTime) {
+          const endTimestamp = Date.now();
+          socketRef.current.send(
+            JSON.stringify({
+              type: "end_time",
+              sessionId: sessionId.current, // Send session ID with end time
+              endTime: endTimestamp,
+            })
+          );
         }
-      } else {
-      // Start the tracking process
-      setStartTime(Date.now()); // Start time tracking
-      setRoute([]); // Reset route
-      setTotalDistance(0); // Reset distance
-      setSteps(0); // Reset steps
-      indexRef.current = 0; // Reset index
+      };
+
+      // Start tracking location
+      const subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.BestForNavigation,
+          timeInterval: 1000, // Update every second
+          distanceInterval: 1, // Update every 1 meter
+        },
+        (newLocation) => {
+          const coords = newLocation.coords;
+          setLocation(coords); // Update current location for the map
+
+          // Send location to WebSocket server with session ID
+          if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+            socketRef.current.send(
+              JSON.stringify({
+                type: "location_update",
+                sessionId: sessionId.current,  // Include session ID with location update
+                latitude: coords.latitude,
+                longitude: coords.longitude,
+                timestamp: newLocation.timestamp,
+              })
+            );
+          }
+        }
+      );
+
+      setLocationSubscription(subscription);
     }
 
     setIsTracking(!isTracking);
+    } catch (error) {
+      console.log(error);
+
+    }
   };
 
   return (
@@ -150,24 +164,19 @@ export default function SimulatedTracking() {
         {endTime && !isTracking && (
           <>
             <Text>Time Elapsed: {(endTime - startTime) / 1000} seconds</Text>
-            <Text>Total Distance: {totalDistance.toFixed(2)} meters</Text>
-            <Text>Steps: {steps}</Text>
           </>
         )}
       </View>
       <MapView
         style={{ flex: 1 }}
         initialRegion={{
-          latitude: 37.78825,
-          longitude: -122.4324,
+          latitude: location ? location.latitude : 37.78825,
+          longitude: location ? location.longitude : -122.4324,
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         }}
       >
         {location && <Marker coordinate={location} title="You" />}
-        {route.length > 0 && (
-          <Polyline coordinates={route} strokeWidth={3} strokeColor="blue" />
-        )}
       </MapView>
 
       <Button

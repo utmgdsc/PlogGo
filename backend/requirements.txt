@@ -5,3 +5,4 @@ flask-cors
 flask-bcrypt
 flask-jwt-extended
 flask-sqlalchemy
+flask-socketio
