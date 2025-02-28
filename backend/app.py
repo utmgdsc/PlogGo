@@ -31,7 +31,7 @@ db = client["PlogGo"]
 
 # set up JWT
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
-app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1) # set time limit for token
+app.config["DEBUG"] = True
 jwt = JWTManager(app)
 
 sessions = {}
