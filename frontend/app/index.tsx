@@ -11,6 +11,7 @@ import Metrics from "./screens/Metrics";
 import Camera from "./screens/Camera";
 import Social from "./screens/Social";
 import Profile from "./screens/Profile";
+import Tracking from "./screens/Tracking";
 import { Button } from "react-native";
 
 const Stack = createNativeStackNavigator();
@@ -46,7 +47,7 @@ const MainTabs = () => {
         >
             <Tab.Screen
                 name="Home"
-                component={Home}
+                component={Tracking}
                 options={{
                     title: 'Home',
                     tabBarLabel: () => null,
