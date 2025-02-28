@@ -48,7 +48,8 @@ const MainTabs = () => {
                 name="Home"
                 component={Home}
                 options={{
-                    title: '',
+                    title: 'Home',
+                    tabBarLabel: () => null,
                     tabBarIcon: ({ color, size }) => (
                         <Ionicons name="home-outline" size={size} color={color} />
                     ),
@@ -58,7 +59,8 @@ const MainTabs = () => {
                 name="Metrics"
                 component={Metrics}
                 options={{
-                    title: '',
+                    title: 'Metrics',
+                    tabBarLabel: () => null,
                     tabBarIcon: ({ color, size }) => (
                         <Ionicons name="analytics" size={size} color={color} />
                     ),
@@ -68,7 +70,8 @@ const MainTabs = () => {
                 name="Camera"
                 component={Camera}
                 options={{
-                    title: '',
+                    title: 'Camera',
+                    tabBarLabel: () => null,
                     tabBarIcon: ({ color, size }) => (
                         <Ionicons name="camera-outline" size={size} color={color} />
                     ),
@@ -78,7 +81,8 @@ const MainTabs = () => {
                 name="Social"
                 component={Social}
                 options={{
-                    title: '',
+                    title: 'Leaderboard',
+                    tabBarLabel: () => null,
                     tabBarIcon: ({ color, size }) => (
                         <Ionicons name="clipboard-outline" size={size} color={color} />
                     ),
@@ -88,7 +92,8 @@ const MainTabs = () => {
                 name="Profile"
                 component={Profile}
                 options={{
-                    title: '',
+                    title: 'Profile',
+                    tabBarLabel: () => null,
                     tabBarIcon: ({ color, size }) => (
                         <Ionicons name="person-outline" size={size} color={color} />
                     ),
