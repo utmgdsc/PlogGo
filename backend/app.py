@@ -2,17 +2,16 @@ from flask import Blueprint, Flask, request, jsonify
 from flask_socketio import SocketIO, emit
 from pymongo import MongoClient
 from dotenv import load_dotenv
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt, get_jwt_identity
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import timedelta, datetime, timezone
+import os
+import base64
+import certifi
 from flask_cors import CORS
 from utils.classifier import classify_litter
 from utils.helper import *
-import os
-import base64
-from datetime import datetime, timezone
-from flask_jwt_extended import JWTManager,get_jwt_identity, jwt_required
-from flask_jwt_extended import create_access_token
-from werkzeug.security import generate_password_hash, check_password_hash
-import os
-import certifi
+import uuid 
 
 # initalize Flask app
 api = Blueprint('api', __name__, url_prefix='/api')
@@ -32,11 +31,35 @@ db = client["PlogGo"]
 
 # set up JWT
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1) # set time limit for token
 jwt = JWTManager(app)
- 
-# Store location and session data in memory (for simplicity)
+
 sessions = {}
 
+def validate_jwt(token):
+    """Manually validate a JWT token."""
+    try:
+        decoded_token = jwt.decode(token, os.getenv("JWT_SECRET_KEY"))
+        jti = decoded_token["jti"]
+        # Check if token is revoked
+        if jti in db.token_blacklist.find_one({'jti': jti}):
+            return None, "Token has been revoked"
+
+        return decoded_token, None  # Valid token
+    except jwt.ExpiredSignatureError:
+        return None, "Token has expired"
+    except jwt.InvalidTokenError:
+        return None, "Invalid token"
+ 
+def get_current_user():
+    email = get_jwt_identity()
+    if not email:
+        return None
+    jid = get_jwt()['jti']
+    if jid in db.token_blacklist.find_one({'jti': jid}):
+        return None
+    return db.user.find_one({email}), email
+    
 # WebSocket route to handle WebSocket events
 @socketio.on('connect')
 def handle_connect():
@@ -49,48 +72,39 @@ def handle_disconnect(data):
 @socketio.on('authenticate')
 def handle_authenticate(data):
     """ Authenticate the user and store session data """
-    token = data.get("token")
-    session_id = data.get("sessionId")
-    if not token:
-        emit("error", {"message": "No token provided"})
-        return
-
-    if not session_id:
-        emit("error", {"message": "No sessionId provided"})
-        return
-    
-    # You can verify the JWT token here (optional)
-    user_email = get_jwt_identity()
-    if not user_email:
-        emit("error", {"message": "Invalid token"})
-    
-    user = db.user.find_one({'email': user_email})
+    user,email = get_current_user()
     if not user:
-        emit("error", {"message": "User not found"})
+        emit("error", {"message": "Invalid token"})
         return
-
-    user_id = user['_id']
-    # Start a new session for the user
-    sessions[session_id] = {
-        "user_id": user_id,
-        "route": [],
-        "start_time": None,
-        "end_time": None,
-        "total_distance": 0,
-        "steps": 0
-    }
     
-    print(f"User {user_email} authenticated and session started.")
+    # Check if the user has an active session
+    session_id = user.get('session_id')
+    if not user.get('session_id'): # User might have started a session before 
+        session_id = str(uuid.uuid4())
+        db.user.update_one({email}, {'$set': {session_id}})
+    
+    # Start a new session for the user
+    if not sessions[session_id]:
+        sessions[session_id] = {
+            "user_id": user["_id"],
+            "route": [],
+            "start_time": None,
+            "end_time": None,
+            "total_distance": 0,
+            "steps": 0
+        }
+    
+    # Send the session ID to the client
+    print(f"User {email} authenticated and session started.")
     emit("authenticated", {"message": "Authentication successful", "session_id": session_id})
 
 @socketio.on('start_time')
 def handle_start_time(data):
     """ Store start time for the session """
     session_id = data.get("session_id")
-    start_time = data.get("startTime")
-    if session_id in sessions:
-        sessions[session_id]["start_time"] = start_time
-        emit("time_started", {"message": "Session started", "start_time": start_time})
+    if sessions[session_id]["start_time"] is not None:
+        sessions[session_id]["start_time"] = datetime.now()
+        emit("time_started", {"message": "Session started", "start_time": sessions[session_id]["start_time"]})
     else:
         emit("error", {"message": "Session not found"})
 
@@ -179,42 +193,92 @@ def login():
     if not email or not password:
         return jsonify(message="Missing email or password"), 400
     # check if the username and password match
-    user_profile = db.user.find_one({'email': email})
-
-    # retrieve password from database
-    hashed_password = user_profile.get('password', '')
+    user = db.user.find_one({'email': email})
     
-    if not user_profile or not check_password_hash(hashed_password, password):
+    if not user :
+        return jsonify(message="Invalid email or password"), 401
+    elif user and not check_password_hash(user.get('auth_password', ''), password):
         return jsonify(message="Invalid email or password"), 401
     else:
         # create JWT token
-        access_token = create_access_token(identity=email)
+        access_token = create_access_token(identity=email, additional_claims={'user_id': uid})
         return jsonify(access_token=access_token), 200
 
-
-@api.route('/logout', methods=['POST'])
+# logout route
+@app.route('/logout', methods=['POST'])
+@jwt_required()
 def logout():
-    pass
+    # get jwt token
+    claim = get_jwt()
+    jti = get_jwt()["jti"] # get unique JWT ID
 
+    # store the token in database
+    db.token_blacklist.insert_one({
+        "jti": jti, 
+    })
+    
+    return jsonify(message="Successfully logged out"), 200
+
+@app.route('/user/sessions', methods=['GET'])
+@jwt_required()
+def get_user_sessions():
+    uid = get_jwt_identity()['user_id']
+    sessions = list(db.session.find({'user_id': uid, 'end_time': None}, {'_id': 0}))
+    return jsonify(sessions=sessions), 200
+
+@app.route('/logout/session/<session_id>', methods=['POST'])
+@jwt_required()
+def logout_specific_session(session_id):
+    uid = get_jwt_identity()['user_id']
+
+    # ensure session belongs to authenticated user
+    session_data = db.session.find_one({'session_id': session_id, 'user_id': uid})
+    if not session_data:
+        return jsonify(message="Session not found or authoriszed"), 403
+
+    end_time = datetime.now(timezone.utc)
+    elapsed_time = end_time - session_data['start_time']
+
+    # update session as logged out
+    db.session.update_one(
+        {'session_id': session_id}, 
+        {'$set': {'end_time': end_time, 'elapsed_time': elapsed_time}}
+    )
+
+    return jsonify(message="Session logged out", session_id=session_id), 200
+
+@app.route('/protected', methods=['GET'])
+@jwt_required()
+def protected():
+    identity = get_jwt_identity()
+    return jsonify({"message": "Access granted", "user_id": identity['user_id']}), 200
 
 # registration route
 @api.route('/register', methods=['POST'])
 def register():    
     # retrieve email and password submission
     data = request.get_json()
+    if not data:
+        return jsonify(message="Missing JSON in request"),
+
     email = data.get('email')
     password = data.get('password')
+    if not email or not password:
+        return jsonify(message="Missing email or password"), 400
 
     # check if the username already exists
     if db.user_authentication.find_one({'auth_email': email}):
         return jsonify(message="Email already exists"), 400
-    else:
-        # hash the password
-        hashed_password = generate_password_hash(password)
 
-        # save user registered data to database
-        db.user_authentication.insert_one({'auth_email': email, 'auth_password': hashed_password})
-        return jsonify(message="User registered successfully"), 201
+    # hash the password
+    hashed_password = generate_password_hash(password)
+
+    # save user registered data to database
+    id = db.user_authentication.insert_one({
+        'auth_email': email, 
+        'auth_password': hashed_password
+    })
+    return jsonify(message="User registered successfully", user_id=id), 201
 
 
 # Update user information (Profile), user needs to be authenticated
