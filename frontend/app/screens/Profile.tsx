@@ -1,4 +1,4 @@
-import { Text, View, StyleSheet } from "react-native";
+import { Text, View, StyleSheet, TouchableOpacity, TextInput } from "react-native";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { API_URL } from "../context/AuthContext";
@@ -24,6 +24,10 @@ export default function Profile() {
     badges: [],
     streak: 0,
   });
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedData, setEditedData] = useState({ name: "", description: "", pfp: "" });
+
   useEffect(() => {
     fetchData();
   }
@@ -31,9 +35,10 @@ export default function Profile() {
 
   const fetchData = async () => {
     try {
-      const response = await axios.get(`${API_URL}/user`);
+      const response = await axios.get(`${API_URL}/user/data`);
       console.log(response.data);
       setData(response.data);
+      setEditedData({ name: response.data.name, description: response.data.description, pfp: response.data.pfp });
     } catch (error) {
       setData({
         pfp: "https://www.pngitem.com/pimgs/m/146-1468479_my-profile-icon-blank-profile-picture-circle-hd.png",
@@ -46,7 +51,18 @@ export default function Profile() {
         ],
         streak: 5,
       });
+      setEditedData({ name: "John Doe", description: "I love to recycle!", pfp: "https://www.pngitem.com/pimgs/m/146-1468479_my-profile-icon-blank-profile-picture-circle-hd.png" });
     };
+  };
+
+  const handleSave = async () => {
+    try {
+      await axios.put(`${API_URL}/user/update`, editedData);
+      setData({ ...data, ...editedData });
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+    }
   };
 
   // load fonts
@@ -73,10 +89,28 @@ export default function Profile() {
     <View style={styles.container}>
       {/* Profile Section */}
       <View style={styles.profile}>
-        <Image style={styles.pfp} source={{ uri: data.pfp }} contentFit="cover" />
-        <Text style={styles.name}>{data.name}</Text>
-        <Text style={styles.description}>{data.description}</Text>
-        <Text style={styles.editProfile}>Edit</Text>
+        <TouchableOpacity onPress={() => setIsEditing(true)}>
+          <Image style={styles.pfp} source={{ uri: editedData.pfp }} contentFit="cover" />
+        </TouchableOpacity>
+        {isEditing ? (
+          <TextInput style={styles.input} value={editedData.name} onChangeText={(text) => setEditedData({ ...editedData, name: text })} />
+        ) : (
+          <Text style={styles.name}>{data.name}</Text>
+        )}
+        {isEditing ? (
+          <TextInput style={styles.input} value={editedData.description} onChangeText={(text) => setEditedData({ ...editedData, description: text })} />
+        ) : (
+          <Text style={styles.description}>{data.description}</Text>
+        )}
+        {isEditing ? (
+          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+            <Text style={styles.saveButtonText}>Save</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.editProfile} onPress={() => setIsEditing(true)}>
+            <Text style={styles.editText}>Edit</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
        {/* Badges Section */}
@@ -228,5 +262,30 @@ const styles = StyleSheet.create({
   },
   streakEmoji: {
     fontSize: 30,
+  },
+  editText: {
+    color: "white",
+    fontSize: 14,
+    fontFamily: "Poppins-Bold",
+  },
+  input: {
+    borderBottomWidth: 1,
+    borderColor: "gray",
+    padding: 5,
+    marginVertical: 5,
+    width: 200,
+    textAlign: "center",
+  },
+  saveButton: {
+    marginTop: 12,
+    backgroundColor: "#007AFF",
+    borderRadius: 20,
+    padding: 10,
+    paddingHorizontal: 20,
+  },
+  saveButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontFamily: "Poppins-Bold",
   },
 });

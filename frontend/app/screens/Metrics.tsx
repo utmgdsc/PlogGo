@@ -1,32 +1,47 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { CircularProgress, AnimatedCircularProgress } from 'react-native-circular-progress';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
+import { API_URL } from '../context/AuthContext';
+import axios from 'axios';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function Metrics() {
   // top banner will have title and settings icon,
-  // middle will have banner with two selections, steps or litter
+  // middle will have banner with two selections, steps or distance
   // then will have a circular progress bar for the selected metric
 
   // TODO: run api call for percentage
-  const progressValues: { [key in 'Steps' | 'Litter']: number } = {
-    Steps: 50,
-    Litter: 75,
+  const [progress, setProgress] = useState({ Steps: 0, Distance: 0 });
+  const [selectedOption, setSelectedOption] = useState<'Steps' | 'Distance'>('Steps');
+  const currentProgress = progress[selectedOption];
+
+  useEffect(() => {
+    fetchData();
   }
-  const progressIcons: { [key in 'Steps' | 'Litter']: string } = {
-    Steps: 'walk',
-    Litter: 'trash',
+    ,[]);
+
+  const fetchData = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/metrics`);
+      console.log(response.data);
+      const Steps = response.data.total_steps;
+      const Distance = response.data.total_distance;
+      setProgress({Steps, Distance});
+    } catch (error) {
+      setProgress({
+        Steps: 50,
+        Distance: 75,
+      });
+    };
   }
-  const smallProgressValues = {
-    Steps: 60, // Example progress for smaller bar 1
-    Litter: 40, // Example progress for smaller bar 2
-  };
-  const [selectedOption, setSelectedOption] = useState<'Steps' | 'Litter'>('Steps');
-  const currentProgress = progressValues[selectedOption];
+  const progressIcons: { [key in 'Steps' | 'Distance']: string } = {
+    Steps: 'footsteps',
+    Distance: 'walk',
+  }
 
   const [loaded, error] = useFonts({
       'Poppins-Black': require('../../assets/fonts/Poppins-Black.ttf'),
@@ -44,6 +59,7 @@ export default function Metrics() {
     if (!loaded && !error) {
       return null;
     }
+
   return (
     <View style={styles.container}>
       {/* Banner: Steps or Litter Selection */}
@@ -67,17 +83,17 @@ export default function Metrics() {
         <TouchableOpacity
           style={[
             styles.bannerButton,
-            selectedOption === 'Litter' && styles.selectedBannerButton,
+            selectedOption === 'Distance' && styles.selectedBannerButton,
           ]}
-          onPress={() => setSelectedOption('Litter')}
+          onPress={() => setSelectedOption('Distance')}
         >
           <Text
             style={[
               styles.bannerText,
-              selectedOption === 'Litter' && styles.selectedBannerText,
+              selectedOption === 'Distance' && styles.selectedBannerText,
             ]}
           >
-            Litter
+            Distance
           </Text>
         </TouchableOpacity>
       </View>
@@ -92,8 +108,8 @@ export default function Metrics() {
           tintColor="#37eb34"
           backgroundColor="#e0e0e0"
         >
-          {() => (
-            <Ionicons name={progressIcons[selectedOption] as 'walk' | 'trash'} size={170} color="#0096FF" />
+                    {() => (
+            <Ionicons name={progressIcons[selectedOption] as "footsteps" | 'walk'} size={170} color="#0096FF" />
           )}
         </AnimatedCircularProgress>
 
