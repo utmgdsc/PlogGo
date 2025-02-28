@@ -9,13 +9,23 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "config": {
+        "useNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSAppTransportSecurity": { 
+          "NSAllowsArbitraryLoads": true 
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "package": "com.anonymous.ploggofront",
+      "usesCleartextTraffic": true,
       "package": "com.ploggo.ploggofront"
     },
     
@@ -35,7 +45,8 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true

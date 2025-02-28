@@ -31,7 +31,7 @@ db = client["PlogGo"]
 
 # set up JWT
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
-app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1) # set time limit for token
+app.config["DEBUG"] = True
 jwt = JWTManager(app)
 
 ### all the routes will expect a JSON body ###
@@ -44,7 +44,7 @@ def login():
     data = request.get_json()
     email = data.get('email')
     password = data.get('password')
-
+    print(uri)
     # check if the username and password match
     user_profile = db.user_authentication.find_one({'auth_email': email})
     

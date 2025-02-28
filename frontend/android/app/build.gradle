@@ -86,9 +86,15 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
+<<<<<<< HEAD
     namespace "com.ploggofront"
     defaultConfig {
         applicationId 'com.ploggo.ploggofront'
+=======
+    namespace 'com.anonymous.ploggofront'
+    defaultConfig {
+        applicationId 'com.anonymous.ploggofront'
+>>>>>>> frontend
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
