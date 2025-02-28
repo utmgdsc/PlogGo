@@ -6,3 +6,10 @@ flask-bcrypt
 flask-jwt-extended
 flask-sqlalchemy
 flask-socketio
+ultralytics
+numpy 
+matplotlib
+torch
+torchvision
+tqdm
+

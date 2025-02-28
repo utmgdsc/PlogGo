@@ -64,14 +64,10 @@ export default function RealTracking() {
     } else {
       console.log("else")
       // Generate new session ID when tracking starts
-      
-      sessionId.current = uuidv4(); // Generate a new session ID
-      console.log("finish uid")
       setStartTime(Date.now());
       setLocation(null);
       console.log("opening ws")
       // Open WebSocket connection
-      fetch("https://64cb-2607-fea8-4e26-9100-e9de-a8ad-fd3a-35cc.ngrok-free.app")
       socketRef.current = new WebSocket("ws://10.0.0.188:5000/"); // Replace with actual server WebSocket URL
       console.log("opened ws")
       socketRef.current.onopen = () => {
