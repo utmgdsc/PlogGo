@@ -73,7 +73,7 @@ const DEFAULT_USERS: UserProfile[] = [
   {
     name: "David Black",
     email: "david@example.com",
-    username: "davidblack",
+    username: "davidblack2",
     total_steps: 10000,
     total_distance: 7.0,
     total_time: 70,
@@ -81,7 +81,7 @@ const DEFAULT_USERS: UserProfile[] = [
   {
     name: "David Black",
     email: "david@example.com",
-    username: "davidblack",
+    username: "davidblack3",
     total_steps: 10000,
     total_distance: 7.0,
     total_time: 70,
@@ -89,7 +89,7 @@ const DEFAULT_USERS: UserProfile[] = [
   {
     name: "David Black",
     email: "david@example.com",
-    username: "davidblack",
+    username: "davidblack4",
     total_steps: 10000,
     total_distance: 7.0,
     total_time: 70,
@@ -97,7 +97,7 @@ const DEFAULT_USERS: UserProfile[] = [
   {
     name: "David Black",
     email: "david@example.com",
-    username: "davidblack",
+    username: "davidblack5",
     total_steps: 10000,
     total_distance: 7.0,
     total_time: 70,

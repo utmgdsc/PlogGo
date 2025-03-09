@@ -12,7 +12,6 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [repeatedPassword, setRepeatedPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const navigation = useNavigation<any>();
   const { onRegister } = useAuth();
 

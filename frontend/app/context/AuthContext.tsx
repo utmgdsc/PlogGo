@@ -58,7 +58,7 @@ export const AuthProvider = ({children}: any) => {
     const login = async (email: string, password: string) => {
         console.log(`${API_URL}/login`)
         try {
-            const result = await axios.post(`${API_URL}/login`, {email, password });
+            const result = await axios.post(`${API_URL}/login`, { email, password });
             setAuthState({
                 token: result.data.access_token,
                 authenticated: true

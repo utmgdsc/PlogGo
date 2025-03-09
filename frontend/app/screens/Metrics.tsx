@@ -38,6 +38,7 @@ export default function Metrics() {
 
   const fetchData = async () => {
     try {
+      console.log(`${API_URL}/metrics`);
       const response = await axios.get(`${API_URL}/metrics`);
       console.log(response.data);
       const Steps = response.data.total_steps;
@@ -45,6 +46,7 @@ export default function Metrics() {
       const Time = response.data.total_time;
       setProgress({ Steps, Distance , Time});
     } catch (error) {
+      console.log(error);
       // Fallback data for development
       setProgress({
         Steps: 65,
