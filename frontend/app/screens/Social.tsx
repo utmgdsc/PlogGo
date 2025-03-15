@@ -123,6 +123,7 @@ export default function Leaderboard() {
     try {
       const response = await axios.get(`${API_URL}/leaderboard?count=10`);
 
+      console.log(response.data);
       if (response.data && Array.isArray(response.data.leaderboard) && response.data.leaderboard.length > 0) {
         setData(response.data.leaderboard);
       }
