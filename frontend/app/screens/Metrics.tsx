@@ -38,8 +38,8 @@ export default function Metrics() {
 
   const fetchData = async () => {
     try {
-      console.log(`${API_URL}/metrics`);
-      const response = await axios.get(`${API_URL}/metrics`);
+      console.log(`${API_URL}/milestone`);
+      const response = await axios.get(`${API_URL}/milestone`);
       console.log(response.data);
       const Steps = response.data.total_steps;
       const Distance = response.data.total_distance;

@@ -194,14 +194,14 @@ def login():
         return jsonify(message="Missing email or password"), 400
     # check if the username and password match
     user = db.user.find_one({'email': email})
-    
+    print(user)
     if not user :
         return jsonify(message="Invalid email or password"), 401
-    elif user and not check_password_hash(user.get('auth_password', ''), password):
+    elif user and not check_password_hash(user.get('password', ''), password):
         return jsonify(message="Invalid email or password"), 401
     else:
         # create JWT token
-        access_token = create_access_token(identity=email, additional_claims={'user_id': uid})
+        access_token = create_access_token(identity=email)
         return jsonify(access_token=access_token), 200
 
 # logout route
@@ -298,6 +298,7 @@ def get_badge():
     return jsonify({'badges': badges}), 200
 
 @api.route('/leaderboard', methods=['GET'])
+@jwt_required('headers')
 def get_leaderboard():
     metric = request.args.get('metric', 'total_steps')
     count = int(request.args.get('count', '10'))
@@ -311,7 +312,7 @@ def get_leaderboard():
         leaderboard.append({
             "name": user['name'],
             "email": user['email'],
-            "username": user['username'],
+            "username": user['user_id'],
             "total_steps": user.get('total_steps', 0),
             "total_distance": user.get('total_distance', 0),
             "total_time": user.get('total_time', 0),
@@ -327,7 +328,9 @@ def get_user_data():
 
 
 @api.route('/milestone', methods=['GET'])
+@jwt_required()
 def get_milestone():
+    print(get_jwt_identity())
     user = db.user.find_one({'email': get_jwt_identity()})
     milestone = {'total_steps': user.total_steps, 'total_distance': user.total_distance, 'total_time': user.total_time}
     return jsonify({'milestone': milestone}), 200
