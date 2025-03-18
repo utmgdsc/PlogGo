@@ -1,12 +1,10 @@
 from ultralytics import YOLO
 
 # load trained model
-model = YOLO("best.pt")
+onnx_model = YOLO('best7.onnx')
 
 # run detection on an image
-results = model("sample.jpg", save=True)
+results = onnx_model("plastic-bottle.jpg", save=True)
 
 # display results
-for r in results:
-    for box in r.boxes:
-        print(f"Class: {int(box.cls)}, Confidence: {float(box.conf)}, BBox: {box.xyxy.tolist()}")
+print(results)
