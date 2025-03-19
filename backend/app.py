@@ -18,9 +18,6 @@ api = Blueprint('api', __name__, url_prefix='/api')
 app = Flask(__name__)
 CORS(app)
 
-# Set up Flask-SocketIO
-socketio = SocketIO(app, cors_allowed_origins="*")  # Allow connections from any origin
-
 # load env variables
 load_dotenv()
 
@@ -60,122 +57,6 @@ def get_current_user():
         return None
     return db.user.find_one({email}), email
     
-# WebSocket route to handle WebSocket events
-@socketio.on('connect')
-def handle_connect():
-    print("A new WebSocket connection has been established.")
-
-@socketio.on('disconnect')
-def handle_disconnect(data):
-    print("A WebSocket connection has been disconnected.")
-
-@socketio.on('authenticate')
-def handle_authenticate(data):
-    """ Authenticate the user and store session data """
-    user,email = get_current_user()
-    if not user:
-        emit("error", {"message": "Invalid token"})
-        return
-    
-    # Check if the user has an active session
-    session_id = user.get('session_id')
-    if not user.get('session_id'): # User might have started a session before 
-        session_id = str(uuid.uuid4())
-        db.user.update_one({email}, {'$set': {session_id}})
-    
-    # Start a new session for the user
-    if not sessions[session_id]:
-        sessions[session_id] = {
-            "user_id": user["_id"],
-            "route": [],
-            "start_time": None,
-            "end_time": None,
-            "total_distance": 0,
-            "steps": 0
-        }
-    
-    # Send the session ID to the client
-    print(f"User {email} authenticated and session started.")
-    emit("authenticated", {"message": "Authentication successful", "session_id": session_id})
-
-@socketio.on('start_time')
-def handle_start_time(data):
-    """ Store start time for the session """
-    session_id = data.get("session_id")
-    if sessions[session_id]["start_time"] is not None:
-        sessions[session_id]["start_time"] = datetime.now()
-        emit("time_started", {"message": "Session started", "start_time": sessions[session_id]["start_time"]})
-    else:
-        emit("error", {"message": "Session not found"})
-
-@socketio.on('end_time')
-def handle_end_time(data):
-    """ Store end time and session info when the session ends """
-    session_id = data.get("session_id")
-    end_time = data.get("endTime")
-    if session_id in sessions:
-        sessions[session_id]["end_time"] = end_time
-        data = sessions[session_id]
-        new_badges = db.badge.find({"steps_required": {"$lte": data['steps']}})
-        
-        # Update Badges
-        badge_ids = [badge["_id"] for badge in new_badges]
-        if badge_ids:
-            print("New badges:", badge_ids)
-            db.user.update_one(
-                {"_id": data["user_id"]}, 
-                {"$addToSet": {"badges": {"$each": badge_ids}}}  # Add badges without duplicates
-            )
-            print("Badges awarded!")
-        
-        # Update Streaks
-        user = db.user.find_one({'_id': data["user_id"]})
-        last_date = user['last_plog_date']
-        user_highest_streak = user['highest_streak'] if user['highest_streak'] else 0
-        if last_date is None or last_date - datetime.now().date() > 1:
-            db.user.update_one(
-                {"_id": data["user_id"]},
-                {"$inc": {"streak": 1, "last_plog_date": datetime.now().date(), "highest_streak": max(user_highest_streak, 1)}}
-            )
-        elif last_date == datetime.now().date() + 1 : # streak ended
-            db.user.update_one(
-                {"_id": data["user_id"]},
-                {"$set": {"streak": user['streak']+1, "last_plog_date": datetime.now().date(), "highest_streak": max(user_highest_streak, user['streak']+1)}}
-            )
-        
-        
-        # Insert the session data into MongoDB collection
-        result = db['plogging_session'].insert_one(sessions['session_id'])
-        print('inserted', result.inserted_id, 'to session collection')
-        # Calculate total distance and steps here, if needed
-        emit("session_ended", {"message": "Session ended", "end_time": end_time, "session_data": sessions[session_id]})
-        print(f"Session {session_id} ended at {end_time}")
-    else:
-        emit("error", {"message": "Session not found"})
-
-@socketio.on('location_update')
-def handle_location_update(data):
-    """ Handle location updates from the frontend """
-    session_id = data.get("session_id")
-    latitude = data.get("latitude")
-    longitude = data.get("longitude")
-    timestamp = data.get("timestamp")
-
-    if session_id in sessions:
-        session = sessions[session_id]
-        routes = session["route"]
-        routes.append({
-            "latitude": latitude,
-            "longitude": longitude,
-            "timestamp": timestamp
-        })
-        n = len(routes)
-        if n > 1:
-            session["total_distance"] += haversine_distance(latitude, longitude,routes[n-2]["latitude"], routes[n-2, "longitude"] )  # Update total distance
-        print(f"Received location update: {latitude}, {longitude} at {timestamp}")
-        
-    else:
-        emit("error", {"message": "Session not found"})
 
 ### all the routes will expect a JSON body ###
 ### all the routes will return a JSON response ###
@@ -267,16 +148,16 @@ def register():
         return jsonify(message="Missing email or password"), 400
 
     # check if the username already exists
-    if db.user_authentication.find_one({'auth_email': email}):
+    if db.user.find_one({'email': email}):
         return jsonify(message="Email already exists"), 400
 
     # hash the password
     hashed_password = generate_password_hash(password)
 
     # save user registered data to database
-    id = db.user_authentication.insert_one({
-        'auth_email': email, 
-        'auth_password': hashed_password
+    id = db.user.insert_one({
+        'email': email, 
+        'password': hashed_password
     })
     return jsonify(message="User registered successfully", user_id=id), 201
 
