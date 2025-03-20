@@ -1,4 +1,0 @@
-Mean Average Precision (mAP@50): 0.565
-Mean Average Precision (mAP@50-95): 0.444
-Precision: 0.777
-Recall: 0.500
