@@ -7,9 +7,7 @@ flask-jwt-extended
 flask-sqlalchemy
 flask-socketio
 ultralytics
-#numpy 
-#matplotlib
-#torch
-#torchvision
+numpy
+opencv-python
 tqdm
 gunicorn
