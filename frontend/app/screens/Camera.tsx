@@ -93,11 +93,21 @@ export default function Camera() {
       
       
       // Show result in a popup notification
+      // result structure: {"points":10, "litter":{"can":1, "bottle":2}}
+      // iterate through litter object to display each item
+      // finally display the total points
       if (data) {
+        for (const [key, value] of Object.entries(data.litter)) {
+          Alert.alert(
+            "Result",
+            `Found ${value} ${key}(s)`,
+            [{ text: "OK" }]
+          );
+        }
         Alert.alert(
-          "Result",
+          "Final Points",
           data.result,
-          [{ text: "OK" }]
+          [{ text: `${data.points}` }]
         );
         // Hide confirmation screen
         setShowConfirmation(false);
