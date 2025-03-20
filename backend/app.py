@@ -237,10 +237,10 @@ def store_litter():
             return jsonify({'error': 'Missing image field'}), 400
 
         image_data = base64.b64decode(data['image'])  # Decode Base64
-        classification = classify_litter(image_data) 
-        with open("received.jpg", "wb") as f:
-            f.write(image_data)
-        return jsonify({'classification': 'classification'})
+        #classification = classify_litter(image_data) 
+        # with open("received.jpg", "wb") as f:
+        #     f.write(image_data)
+        return jsonify({'result': 'Yay!'}), 200
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500

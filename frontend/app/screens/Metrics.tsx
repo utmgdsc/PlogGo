@@ -5,6 +5,7 @@ import { AnimatedCircularProgress } from 'react-native-circular-progress';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { API_URL } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -14,6 +15,7 @@ export default function Metrics() {
   const [progress, setProgress] = useState({ Steps: 0, Distance: 0, Time: 0 });
   const [selectedOption, setSelectedOption] = useState<'Steps' | 'Distance'>('Steps');
   const currentProgress = progress[selectedOption as 'Steps' | 'Distance'];
+  const { authState } = useAuth();
   
   const metrics = {
     Steps: {
@@ -41,6 +43,7 @@ export default function Metrics() {
       console.log(`${API_URL}/milestone`);
       const response = await axios.get(`${API_URL}/milestone`);
       console.log(response.data);
+
       const Steps = response.data.total_steps;
       const Distance = response.data.total_distance;
       const Time = response.data.total_time;
@@ -227,7 +230,7 @@ export default function Metrics() {
               <View style={styles.goalIconContainer}>
                 <Ionicons name="calendar-outline" size={20} color="#fff" />
               </View>
-              <Text style={styles.goalText}>Activity Streak</Text>
+              <Text style={styles.goalText}>Current Streak</Text>
               <Text style={styles.goalValue}>5/7 days</Text>
             </View>
             <View style={styles.progressBarContainer}>
@@ -240,7 +243,7 @@ export default function Metrics() {
               <View style={[styles.goalIconContainer, { backgroundColor: '#2196F3' }]}>
                 <Ionicons name="trophy-outline" size={20} color="#fff" />
               </View>
-              <Text style={styles.goalText}>Weekly Target</Text>
+              <Text style={styles.goalText}>Litter Target</Text>
               <Text style={styles.goalValue}>60%</Text>
             </View>
             <View style={styles.progressBarContainer}>

@@ -40,6 +40,8 @@ export default function Login() {
       if (result && result.error) {
         alert(result.msg);
       }
+      // redirect to login page
+      navigation.navigate('Login');
     } else {
       alert('Login function is not available.');
     }
