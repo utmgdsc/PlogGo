@@ -226,6 +226,7 @@ def get_user_data():
 @jwt_required()
 def get_metrics():
     user = db.user.find_one({'email': get_jwt_identity()})
+    print("User:", user)
     return jsonify({'time':user.total_time, 
                     'distance':user.total_distance, 
                     'steps':user.total_steps, 
