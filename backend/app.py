@@ -82,7 +82,7 @@ def login():
     else:
         # create JWT token
         access_token = create_access_token(identity=email)
-        return jsonify(access_token=access_token), 200
+        return jsonify(user_id=user.get("_id"), access_token=access_token), 200
 
 # logout route
 @app.route('/logout', methods=['POST'])
@@ -167,6 +167,21 @@ def register():
 def update_user():
     pass
 
+# Update user information (Profile)
+@app.route('/profile/<string:user_id>', methods=['GET'])
+def get_user(user_id):
+    user = db.user.find_one({"_id": user_id}) 
+    if user:
+        return jsonify({
+            "name": user.get("name"),
+            "email": user.get("email"),
+            "pfp": user.get("pfp"),
+            "description": user.get("description"),
+            "streak": user.get("streak"),
+            "badges": [{"title":badge.title, "icon":"badge".icon} for badge in user.get("badges")]
+        }), 200
+    return jsonify({"error": "User not found"}), 404
+
 @api.route('/badge', methods=['GET'])
 @jwt_required()
 def get_badge():
@@ -204,16 +219,18 @@ def get_leaderboard():
 @api.route('/user/data', methods=['GET'])
 @jwt_required()
 def get_user_data():
-        return jsonify({'message': get_jwt_identity()}), 200
+    return jsonify({'message': get_jwt_identity()}), 200
 
 
-@api.route('/milestone', methods=['GET'])
+@api.route('/metrics', methods=['GET'])
 @jwt_required()
-def get_milestone():
-    print(get_jwt_identity())
+def get_metrics():
     user = db.user.find_one({'email': get_jwt_identity()})
-    milestone = {'total_steps': user.total_steps, 'total_distance': user.total_distance, 'total_time': user.total_time}
-    return jsonify({'milestone': milestone}), 200
+    return jsonify({'time':user.total_time, 
+                    'distance':user.total_distance, 
+                    'steps':user.total_steps, 
+                    'calories':user.total_steps*0.04,
+                    'curr_streak':user.streak}), 200
 
 # Get current daily challenge (pick randomly 1 challenge from challenges db)
 @api.route('/daily-challenge', methods=['GET'])
@@ -237,10 +254,10 @@ def store_litter():
             return jsonify({'error': 'Missing image field'}), 400
 
         image_data = base64.b64decode(data['image'])  # Decode Base64
-        classification = classify_litter(image_data) 
-        with open("received.jpg", "wb") as f:
-            f.write(image_data)
-        return jsonify({'classification': 'classification'})
+        # classification = classify_litter(image_data) 
+        # with open("received.jpg", "wb") as f:
+        #     f.write(image_data)
+        return jsonify({"points":10, "litters":{"can":1, "bottle":2}})
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
