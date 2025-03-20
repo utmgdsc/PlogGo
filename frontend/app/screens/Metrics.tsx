@@ -1,19 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, ScrollView } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { AnimatedCircularProgress } from 'react-native-circular-progress';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { API_URL } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function Metrics() {
-  const [progress, setProgress] = useState({ Steps: 0, Distance: 0, Time: 0 });
+  const [progress, setProgress] = useState({ Steps: 0, Distance: 0, Time: 0, Calories: 0, Litter: 0, Curr_Streak: 0});
   const [selectedOption, setSelectedOption] = useState<'Steps' | 'Distance'>('Steps');
   const currentProgress = progress[selectedOption as 'Steps' | 'Distance'];
+  const { authState } = useAuth();
   
   const metrics = {
     Steps: {
@@ -38,20 +41,27 @@ export default function Metrics() {
 
   const fetchData = async () => {
     try {
-      console.log(`${API_URL}/milestone`);
-      const response = await axios.get(`${API_URL}/milestone`);
+      console.log(`${API_URL}/metrics`);
+      const response = await axios.get(`${API_URL}/metrics`);
       console.log(response.data);
-      const Steps = response.data.total_steps;
-      const Distance = response.data.total_distance;
-      const Time = response.data.total_time;
-      setProgress({ Steps, Distance , Time});
+
+      const Steps = response.data.steps;
+      const Distance = response.data.distance;
+      const Time = response.data.time;
+      const Calories = response.data.calories;
+      const Litter = response.data.litter;
+      const Curr_Streak = response.data.curr_streak;
+      setProgress({ Steps, Distance, Time, Calories, Litter, Curr_Streak });
     } catch (error) {
       console.log(error);
       // Fallback data for development
       setProgress({
         Steps: 65,
         Distance: 42,
-        Time: 32
+        Time: 32,
+        Calories: 245,
+        Litter: 10,
+        Curr_Streak: 5
       });
     }
   };
@@ -211,41 +221,38 @@ export default function Metrics() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <Ionicons name="flame-outline" size={28} color="#2196F3" />
-              <Text style={styles.summaryValue}>245</Text>
+              <FontAwesome6 name="fire-flame-curved" size={28} color="#2196F3" />
+              <Text style={styles.summaryValue}>{progress.Calories}</Text>
               <Text style={styles.summaryLabel}>Calories</Text>
             </LinearGradient>
           </View>
         </View>
 
         {/* Weekly Progress */}
-        <View style={styles.weeklySection}>
-          <Text style={styles.sectionTitle}>Weekly Goals</Text>
-          
-          <View style={styles.goalContainer}>
-            <View style={styles.goalTitleRow}>
-              <View style={styles.goalIconContainer}>
-                <Ionicons name="calendar-outline" size={20} color="#fff" />
-              </View>
-              <Text style={styles.goalText}>Activity Streak</Text>
-              <Text style={styles.goalValue}>5/7 days</Text>
-            </View>
-            <View style={styles.progressBarContainer}>
-              <View style={[styles.progressBar, { width: `${75}%`, backgroundColor: '#4CAF50' }]} />
-            </View>
-          </View>
-          
-          <View style={styles.goalContainer}>
-            <View style={styles.goalTitleRow}>
-              <View style={[styles.goalIconContainer, { backgroundColor: '#2196F3' }]}>
-                <Ionicons name="trophy-outline" size={20} color="#fff" />
-              </View>
-              <Text style={styles.goalText}>Weekly Target</Text>
-              <Text style={styles.goalValue}>60%</Text>
-            </View>
-            <View style={styles.progressBarContainer}>
-              <View style={[styles.progressBar, { width: `${60}%`, backgroundColor: '#2196F3' }]} />
-            </View>
+        <View style={styles.summarySection}>
+          <Text style={styles.sectionTitle}>Total Metrics</Text>
+          <View style={styles.summaryCards}>
+            <LinearGradient
+              colors={['#E3F2FD', '#BBDEFB']}
+              style={styles.summaryCard}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Ionicons name="flame" size={28} color="#2196F3" />
+              <Text style={styles.summaryValue}>{progress.Curr_Streak}</Text>
+              <Text style={styles.summaryLabel}>Current Streak</Text>
+            </LinearGradient>
+            
+            <LinearGradient
+              colors={['#E8F5E9', '#C8E6C9']}
+              style={styles.summaryCard}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <FontAwesome6 name="trash-can" size={28} color="#4CAF50" />
+              <Text style={styles.summaryValue}>{progress.Litter}</Text>
+              <Text style={styles.summaryLabel}>Trash Collected</Text>
+            </LinearGradient>
           </View>
         </View>
         

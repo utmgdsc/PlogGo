@@ -35,6 +35,7 @@ export default function Profile() {
 
   const fetchData = async () => {
     try {
+      // name, pfp, description, streak
       const response = await axios.get(`${API_URL}/user/data`);
       console.log(response.data);
       setData(response.data);
