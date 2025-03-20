@@ -72,6 +72,7 @@ def login():
     if not email or not password:
         return jsonify(message="Missing email or password"), 400
     # check if the username and password match
+    print(db)
     user = db.user.find_one({'email': email})
     print(user)
     if not user :
@@ -143,21 +144,23 @@ def register():
     email = data.get('email')
     password = data.get('password')
     if not email or not password:
+        print("Missing email or password")
         return jsonify(message="Missing email or password"), 400
 
     # check if the username already exists
     if db.user.find_one({'email': email}):
+        print("Email already exists")
         return jsonify(message="Email already exists"), 400
 
     # hash the password
     hashed_password = generate_password_hash(password)
 
     # save user registered data to database
-    id = db.user.insert_one({
+    db.user.insert_one({
         'email': email, 
         'password': hashed_password
     })
-    return jsonify(message="User registered successfully", user_id=id), 201
+    return jsonify({"message":"User registered successfully"}), 201
 
 
 # Update user information (Profile), user needs to be authenticated
