@@ -170,9 +170,10 @@ def update_user():
     pass
 
 # Get user information (Profile)
-@app.route('/profile/<string:user_id>', methods=['GET'])
-def get_user(user_id):
-    user = db.user.find_one({"_id": user_id}) 
+@app.route('/profile', methods=['GET'])
+@jwt_required()
+def get_profile():
+    user = get_current_user()
     if user:
         return jsonify({
             "name": user.get("name"),
@@ -180,7 +181,7 @@ def get_user(user_id):
             "pfp": user.get("pfp"),
             "description": user.get("description"),
             "streak": user.get("streak"),
-            "badges": [{"title":badge.title, "icon":"badge".icon} for badge in user.get("badges")]
+            "badges": [{"title":badge.title, "icon":badge.icon} for badge in user.get("badges")]
         }), 200
     return jsonify({"error": "User not found"}), 404
 
