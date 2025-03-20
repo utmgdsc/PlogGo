@@ -237,14 +237,7 @@ def get_metrics():
 @api.route('/daily-challenge', methods=['GET'])
 def get_daily_challenge():
     challenge = db.challenges.aggregate([{"$sample": {"size": 1}}])
-    return jsonify({'challenge': challenge}), 200
-
-
-# Return the classification of the litter
-@api.route('/stpre-litter', methods=['POST'])
-def classify_litter():
-    image = request.files.get('image')
-    
+    return jsonify({'challenge': challenge}), 200 
 
 
 # Store the litter data in the database
