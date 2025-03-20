@@ -12,6 +12,7 @@ from flask_cors import CORS
 from utils.classifier import classify_litter
 from utils.helper import *
 import uuid 
+from models.detect import detect_litter_from_base64
 
 # initalize Flask app
 api = Blueprint('api', __name__, url_prefix='/api')
@@ -343,9 +344,23 @@ def get_daily_challenge():
 
 
 # Return the classification of the litter
-@api.route('/classify-litter', methods=['POST'])
-def classify_litter():
-    pass
+@api.route('/detect-litter', methods=['POST'])
+def detect_litter():
+    try:
+        data = request.json  # Expect JSON input
+        if 'image' not in data:
+            return jsonify({'error': 'Missing image field'}), 400
+
+        base64_string = data['image']
+        model_path = "/path/to/best.onnx"  # Change this to your actual model path
+        labels_path = "/path/to/litter_classes.txt"  # Change to the actual labels path
+
+        # Run detection
+        predictions = detect_litter_from_base64(base64_string, model_path, labels_path)
+
+        return jsonify({'predictions': predictions})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 # Store the litter data in the database
