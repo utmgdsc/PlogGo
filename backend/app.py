@@ -7,7 +7,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import timedelta, datetime, timezone
 import os
 import base64
-import certifi
 from flask_cors import CORS
 from utils.classifier import classify_litter
 from utils.helper import *
@@ -305,4 +304,4 @@ app.register_blueprint(api)
 
 if __name__ == '__main__':
    
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=80, debug=True)

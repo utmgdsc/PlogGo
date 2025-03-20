@@ -116,4 +116,4 @@ def location_update(sid, data):
 
 # Run WebSocket server
 if __name__ == "__main__":
-    eventlet.wsgi.server(eventlet.listen(("0.0.0.0", 5001)), app)
+    eventlet.wsgi.server(eventlet.listen(("0.0.0.0", 5000)), app)

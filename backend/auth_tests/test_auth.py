@@ -1,6 +1,6 @@
 import pytest
 from flask import json
-from backend.app import app, db
+from backend.ws import app, db
 from flask_jwt_extended import decode_token
 from dotenv import load_dotenv
 
