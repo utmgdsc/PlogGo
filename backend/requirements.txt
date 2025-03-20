@@ -14,3 +14,5 @@ torchvision
 tqdm
 gunicorn
 onnxruntime
+onnx>=1.12.0
+onnxslim
