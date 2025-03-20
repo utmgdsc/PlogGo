@@ -10,7 +10,6 @@ import base64
 from flask_cors import CORS
 from utils.classifier import classify_litter
 from utils.helper import *
-import uuid 
 
 # initalize Flask app
 api = Blueprint('api', __name__, url_prefix='/api')
@@ -31,7 +30,7 @@ app.config["DEBUG"] = True
 jwt = JWTManager(app)
 
 sessions = {}
-
+            
 def validate_jwt(token):
     """Manually validate a JWT token."""
     try:
@@ -73,6 +72,7 @@ def login():
     if not email or not password:
         return jsonify(message="Missing email or password"), 400
     # check if the username and password match
+    print(db)
     user = db.user.find_one({'email': email})
     print(user)
     if not user :
@@ -144,21 +144,23 @@ def register():
     email = data.get('email')
     password = data.get('password')
     if not email or not password:
+        print("Missing email or password")
         return jsonify(message="Missing email or password"), 400
 
     # check if the username already exists
     if db.user.find_one({'email': email}):
+        print("Email already exists")
         return jsonify(message="Email already exists"), 400
 
     # hash the password
     hashed_password = generate_password_hash(password)
 
     # save user registered data to database
-    id = db.user.insert_one({
+    db.user.insert_one({
         'email': email, 
         'password': hashed_password
     })
-    return jsonify(message="User registered successfully", user_id=id), 201
+    return jsonify({"message":"User registered successfully"}), 201
 
 
 # Update user information (Profile), user needs to be authenticated
@@ -168,9 +170,10 @@ def update_user():
     pass
 
 # Get user information (Profile)
-@app.route('/profile/<string:user_id>', methods=['GET'])
-def get_user(user_id):
-    user = db.user.find_one({"_id": user_id}) 
+@app.route('/profile', methods=['GET'])
+@jwt_required()
+def get_profile():
+    user = get_current_user()
     if user:
         return jsonify({
             "name": user.get("name"),
@@ -178,7 +181,7 @@ def get_user(user_id):
             "pfp": user.get("pfp"),
             "description": user.get("description"),
             "streak": user.get("streak"),
-            "badges": [{"title":badge.title, "icon":"badge".icon} for badge in user.get("badges")]
+            "badges": [{"title":badge.title, "icon":badge.icon} for badge in user.get("badges")]
         }), 200
     return jsonify({"error": "User not found"}), 404
 
@@ -205,12 +208,9 @@ def get_leaderboard():
     leaderboard = []
     for user in users:
         leaderboard.append({
-            "name": user['name'],
             "email": user['email'],
-            "username": user['user_id'],
-            "total_steps": user.get('total_steps', 0),
-            "total_distance": user.get('total_distance', 0),
-            "total_time": user.get('total_time', 0),
+            metric: user.get(metric, 0),
+            "name": user.get('name', '2lazy2setaname')
         })
     return jsonify({'metric': metric, 'leaderboard': leaderboard}), 200
     
@@ -226,23 +226,18 @@ def get_user_data():
 @jwt_required()
 def get_metrics():
     user = db.user.find_one({'email': get_jwt_identity()})
-    return jsonify({'time':user.total_time, 
-                    'distance':user.total_distance, 
-                    'steps':user.total_steps, 
-                    'calories':user.total_steps*0.04,
-                    'curr_streak':user.streak}), 200
+    print("User:", user)
+    return jsonify({'time':user.get("total_time"), 
+                    'distance':user.get("total_distance"),
+                    'steps':user.get("total_steps"),
+                    'calories':user.get("total_steps")*0.04,
+                    'curr_streak':user.get("streak")}), 200 
 
 # Get current daily challenge (pick randomly 1 challenge from challenges db)
 @api.route('/daily-challenge', methods=['GET'])
 def get_daily_challenge():
     challenge = db.challenges.aggregate([{"$sample": {"size": 1}}])
-    return jsonify({'challenge': challenge}), 200
-
-
-# Return the classification of the litter
-@api.route('/classify-litter', methods=['POST'])
-def classify_litter():
-    pass
+    return jsonify({'challenge': challenge}), 200 
 
 
 # Store the litter data in the database
@@ -252,14 +247,12 @@ def store_litter():
         data = request.json  # Expecting JSON body
         if 'image' not in data:
             return jsonify({'error': 'Missing image field'}), 400
-
-        image_data = base64.b64decode(data['image'])  # Decode Base64
-        # classification = classify_litter(image_data) 
-        # with open("received.jpg", "wb") as f:
-        #     f.write(image_data)
-        return jsonify({"points":10, "litters":{"can":1, "bottle":2}})
+        results = classify_litter(data['image'])
+        points = sum(results.values()) * 10  # 10 points per litter item
+        return jsonify({"points":points, "litters":results})
 
     except Exception as e:
+        print(e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -321,4 +314,4 @@ app.register_blueprint(api)
 
 if __name__ == '__main__':
    
-    app.run(host='0.0.0.0', port=80, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)

@@ -36,8 +36,8 @@ export default function Profile() {
   const fetchData = async () => {
     try {
       // name, pfp, description, streak
-      const response = await axios.get(`${API_URL}/user/data`);
-      console.log(response.data);
+      const response = await axios.get(`${API_URL}/profile`);
+      console.log("fetch pfp", response.data.name);
       setData(response.data);
       setEditedData({ name: response.data.name, description: response.data.description, pfp: response.data.pfp });
     } catch (error) {
@@ -118,14 +118,14 @@ export default function Profile() {
        <View style={styles.badges}>
         <Text style={styles.badgesTitle}>Badges</Text>
         <View style={styles.badgeContainer}>
-          {data.badges.map((badge, index) => (
+          {data.badges ? data.badges.map((badge, index) => (
             <View key={index} style={styles.badgeItem}>
               <View style={styles.badgeCircle}>
                 <Text style={styles.badgeIcon}>{badge.icon}</Text>
               </View>
               <Text style={styles.badgeText}>{badge.title}</Text>
             </View>
-          ))}
+          )) : null}
         </View>
       </View>
 

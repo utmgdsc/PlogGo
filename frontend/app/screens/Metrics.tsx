@@ -44,6 +44,7 @@ export default function Metrics() {
       console.log(`${API_URL}/metrics`);
       const response = await axios.get(`${API_URL}/metrics`);
       console.log(response.data);
+      console.log('metircs^')
 
       const Steps = response.data.steps;
       const Distance = response.data.distance;
