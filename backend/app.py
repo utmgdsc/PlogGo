@@ -10,7 +10,6 @@ import base64
 from flask_cors import CORS
 from utils.classifier import classify_litter
 from utils.helper import *
-import uuid 
 
 # initalize Flask app
 api = Blueprint('api', __name__, url_prefix='/api')
@@ -31,7 +30,7 @@ app.config["DEBUG"] = True
 jwt = JWTManager(app)
 
 sessions = {}
-
+            
 def validate_jwt(token):
     """Manually validate a JWT token."""
     try:
@@ -240,9 +239,10 @@ def get_daily_challenge():
 
 
 # Return the classification of the litter
-@api.route('/classify-litter', methods=['POST'])
+@api.route('/stpre-litter', methods=['POST'])
 def classify_litter():
-    pass
+    image = request.files.get('image')
+    
 
 
 # Store the litter data in the database
@@ -253,11 +253,9 @@ def store_litter():
         if 'image' not in data:
             return jsonify({'error': 'Missing image field'}), 400
 
-        image_data = base64.b64decode(data['image'])  # Decode Base64
-        # classification = classify_litter(image_data) 
-        # with open("received.jpg", "wb") as f:
-        #     f.write(image_data)
-        return jsonify({"points":10, "litters":{"can":1, "bottle":2}})
+        results = classify_litter(data['image'])
+        points = sum(results.values()) * 10  # 10 points per litter item
+        return jsonify({"points":points, "litters":results})
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
