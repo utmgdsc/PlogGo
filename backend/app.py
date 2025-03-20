@@ -254,7 +254,7 @@ def store_litter():
         data = request.json  # Expecting JSON body
         if 'image' not in data:
             return jsonify({'error': 'Missing image field'}), 400
-
+        print(data)
         results = classify_litter(data['image'])
         points = sum(results.values()) * 10  # 10 points per litter item
         return jsonify({"points":points, "litters":results})
