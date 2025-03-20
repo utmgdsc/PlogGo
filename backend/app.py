@@ -82,7 +82,7 @@ def login():
     else:
         # create JWT token
         access_token = create_access_token(identity=email)
-        return jsonify(user_id=user.get("_id"), access_token=access_token), 200
+        return jsonify(user_id=user.get("user_id"), access_token=access_token), 200
 
 # logout route
 @app.route('/logout', methods=['POST'])
@@ -167,7 +167,7 @@ def register():
 def update_user():
     pass
 
-# Update user information (Profile)
+# Get user information (Profile)
 @app.route('/profile/<string:user_id>', methods=['GET'])
 def get_user(user_id):
     user = db.user.find_one({"_id": user_id}) 
