@@ -207,12 +207,9 @@ def get_leaderboard():
     leaderboard = []
     for user in users:
         leaderboard.append({
-            "name": user['name'],
             "email": user['email'],
-            "username": user['user_id'],
-            "total_steps": user.get('total_steps', 0),
-            "total_distance": user.get('total_distance', 0),
-            "total_time": user.get('total_time', 0),
+            metric: user.get(metric, 0),
+            "name": user.get('name', '2lazy2setaname')
         })
     return jsonify({'metric': metric, 'leaderboard': leaderboard}), 200
     
