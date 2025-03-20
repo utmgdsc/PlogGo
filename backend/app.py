@@ -227,11 +227,11 @@ def get_user_data():
 def get_metrics():
     user = db.user.find_one({'email': get_jwt_identity()})
     print("User:", user)
-    return jsonify({'time':user.total_time, 
-                    'distance':user.total_distance, 
-                    'steps':user.total_steps, 
-                    'calories':user.total_steps*0.04,
-                    'curr_streak':user.streak}), 200
+    return jsonify({'time':user.get("total_time"), 
+                    'distance':user.get("total_distance"),
+                    'steps':user.get("total_steps"),
+                    'calories':user.get("total_steps")*0.04,
+                    'curr_streak':user.get("streak")}), 200 
 
 # Get current daily challenge (pick randomly 1 challenge from challenges db)
 @api.route('/daily-challenge', methods=['GET'])
