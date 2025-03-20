@@ -87,9 +87,10 @@ export default function Camera() {
       if (!photo || !photo.base64) {
         throw new Error("Photo data is missing");
       }
+      console.log("Sending photo to server..."+`${API_URL}/store-litter` );
       const response = await axios.post(`${API_URL}/store-litter`, { image: photo.base64})
       const data = await response.data;
-      console.log(data);
+      console.log("get",data);
       
       
       // Show result in a popup notification
@@ -97,6 +98,10 @@ export default function Camera() {
       // iterate through litter object to display each item
       // finally display the total points
       if (data) {
+        Alert.alert(
+          "Final Points",
+          [{ text: `${data.points}` }]
+        );
         for (const [key, value] of Object.entries(data.litter)) {
           Alert.alert(
             "Result",
@@ -104,11 +109,7 @@ export default function Camera() {
             [{ text: "OK" }]
           );
         }
-        Alert.alert(
-          "Final Points",
-          data.result,
-          [{ text: `${data.points}` }]
-        );
+       
         // Hide confirmation screen
         setShowConfirmation(false);
         setPhoto(null);
