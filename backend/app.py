@@ -13,6 +13,9 @@ from utils.classifier import classify_litter
 from utils.helper import *
 import uuid 
 from models.detect import detect_litter_from_base64
+from utils.ps_helper import load_litter_points
+from collections import Counter
+import json
 
 # initalize Flask app
 api = Blueprint('api', __name__, url_prefix='/api')
@@ -358,7 +361,24 @@ def detect_litter():
         # Run detection
         predictions = detect_litter_from_base64(base64_string, model_path, labels_path)
 
-        return jsonify({'predictions': predictions})
+        point_sys = load_litter_points('/path/to/litter_point_system.txt')
+
+        detect_litter = [litter for litter in predictions if litter in point_sys]
+
+        litter_counts = Counter(detect_litter)
+
+        # calculate the total points
+        total_points = sum(point_sys[litter] * count for litter, count in litter_counts.items())
+
+        # Prepare the JSON result
+        result = {
+            "total_points": total_points,
+            "litter": {litter: count for litter, count in litter_counts.items()}
+        }
+        
+        points_earn = json.dumps(result)
+
+        return points_earn
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
