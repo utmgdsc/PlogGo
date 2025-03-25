@@ -10,9 +10,9 @@ export default function Profile() {
 
   // uncomment when backend is ready
   interface UserProfile {
-    pfp: string;
+    pfp: string | null;
     name: string;
-    description: string;
+    description: string | null;
     badges: { icon: string; title: string }[];
     streak: number;
   }
@@ -41,6 +41,7 @@ export default function Profile() {
       setData(response.data);
       setEditedData({ name: response.data.name, description: response.data.description, pfp: response.data.pfp });
     } catch (error) {
+      console.error("Error fetching profile:", error);
       setData({
         pfp: "https://www.pngitem.com/pimgs/m/146-1468479_my-profile-icon-blank-profile-picture-circle-hd.png",
         name: "John Doe",

@@ -92,7 +92,6 @@ export default function Camera() {
       const data = await response.data;
       console.log("get",data);
       
-      
       // Show result in a popup notification
       // result structure: {"points":10, "litter":{"can":1, "bottle":2}}
       // iterate through litter object to display each item
@@ -100,9 +99,10 @@ export default function Camera() {
       if (data) {
         Alert.alert(
           "Final Points",
-          [{ text: `${data.points}` }]
+          `${data.points}`,
+          [{ text: "OK" }]
         );
-        for (const [key, value] of Object.entries(data.litter)) {
+        for (const [key, value] of Object.entries(data.litters)) {
           Alert.alert(
             "Result",
             `Found ${value} ${key}(s)`,
