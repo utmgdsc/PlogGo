@@ -167,7 +167,32 @@ def register():
 @api.route('/user', methods=['PUT'])
 @jwt_required()
 def update_user():
-    pass
+    user = db.user.find_one({'email': get_jwt_identity()})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    
+    data = request.get_json()
+    
+    update_fields = {}
+    if "name" in data:
+        update_fields["name"] = data["name"]
+    if "pfp" in data:
+        update_fields["pfp"] = data["pfp"]
+    if "description" in data:
+        update_fields["description"] = data["description"]
+    if update_fields:
+        db.user.update_one({'email': get_jwt_identity()}, {"$set": update_fields})
+    
+    user.update(update_fields)  
+    
+    return jsonify({
+        "name": user.get("name"),
+        "email": user.get("email"),
+        "pfp": user.get("pfp",""),
+        "description": user.get("description",""),
+    }), 200
+        
+        
 
 # Get user information (Profile)
 @app.route('/profile', methods=['GET'])
@@ -231,7 +256,8 @@ def get_metrics():
                     'distance':user.get("total_distance"),
                     'steps':user.get("total_steps"),
                     'calories':user.get("total_steps")*0.04,
-                    'curr_streak':user.get("streak")}), 200 
+                    'curr_streak':user.get("streak"),
+                    'litter':user.get("total_litters",0)}), 200 
 
 # Get current daily challenge (pick randomly 1 challenge from challenges db)
 @api.route('/daily-challenge', methods=['GET'])
