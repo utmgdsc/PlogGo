@@ -1,14 +1,15 @@
-from ultralytics import YOLO
 import cv2
 import numpy as np
 import base64
 
+# convert base 64 to cv2 compatible image format
 def base64_to_opencv(base64_string):
     img_data = base64.b64decode(base64_string)
     np_arr = np.frombuffer(img_data, np.uint8)
     img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
     return img
 
+# run inference with onnx runtime 
 def run_model(model_path, img):
     # read the trained onnx model
     net = cv2.dnn.readNetFromONNX(model_path)
@@ -170,23 +171,3 @@ def detect_litter_from_base64(base64_string, model_path, labels_path):
     ]
 
     return predictions
-
-# export (YOLO) model weights to onnx format
-def export_to_onnx(model_path):
-    model = YOLO(model_path)
-    model.export(format='onnx', opset=12, imgsz = [640, 640])
-    
-# Replace with the actual paths
-# MODEL_PATH = "/Users/hwey/Desktop/projects/PlogGo/backend/models/best.onnx"  # Path to the ONNX model
-# LABELS_PATH = "/Users/hwey/Desktop/projects/PlogGo/backend/models/litter_classes.txt"  # Path to labels file
-
-# # (for testing) load testing base64 encoded image
-# def load_sample_base64():
-#     with open("/Users/hwey/Desktop/projects/PlogGo/backend/models/test.jpg", "rb") as image_file:
-#         return base64.b64encode(image_file.read()).decode("utf-8")
-
-# if __name__ == "__main__":
-#     base64_image = load_sample_base64()
-#     detections = detect_litter_from_base64(base64_image, MODEL_PATH, LABELS_PATH)
-    
-#     print(detections)
