@@ -372,7 +372,7 @@ def detect_litter():
 
         # Prepare the JSON result
         result = {
-            "total_points": total_points,
+            "points": total_points,
             "litter": {litter: count for litter, count in litter_counts.items()}
         }
         

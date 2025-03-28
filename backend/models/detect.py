@@ -2,7 +2,6 @@ from ultralytics import YOLO
 import cv2
 import numpy as np
 import base64
-from PIL import Image
 
 def base64_to_opencv(base64_string):
     img_data = base64.b64decode(base64_string)
@@ -73,9 +72,6 @@ def NMS(boxes, conf_scores, iou_thresh = 0.50):
 
         order = order[boleans]
 
-        # order = [2,0,1]  boleans = [True, False, True]
-        # order = [2,1]
-
     return keep, keep_confidences
 
 def rescale_back(results,img_w,img_h):
@@ -94,13 +90,14 @@ def rescale_back(results,img_w,img_h):
     # print(np.array(keep).shape)
     return keep, keep_confidences
 
+# load classes labels for pretrained model
 def load_labels(path):
     with open(path) as file: # extract number of classes from text file
         content = file.read()
         classes = content.split('\n')
     return classes
 
-def filter_Detections(results, thresh = 0.3):
+def filter_Detections(results, thresh = 0.5):
     # if model is trained on 1 class only
     if len(results[0]) == 5:
         # filter out the detections with confidence > thresh
@@ -129,14 +126,12 @@ def filter_Detections(results, thresh = 0.3):
         return considerable_detections
 
 def detect_litter_from_base64(base64_string, model_path, labels_path):
+    # convert base64 encoded images to cv2 compatible type
     image = base64_to_opencv(base64_string)
 
     # YOLO model need RGB image
     img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     img_height, img_width = img.shape[:2]
-
-    # report image dim
-    # print(image.shape)
 
     # resize image to desired sire for inference
     img = cv2.resize(img, (640, 640))
@@ -156,12 +151,14 @@ def detect_litter_from_base64(base64_string, model_path, labels_path):
     # remove the first index because it is one image
     results = output[0]
 
+    # tranpose the image matrix
     results = results.transpose()
 
+    # filter inaccurate detections
     results = filter_Detections(results)
 
+    # rescale the images back to its original form
     rescaled_results, confidences = rescale_back(results, img_width, img_height)
-
 
     # Load class labels
     classes = load_labels(labels_path) 
@@ -174,6 +171,22 @@ def detect_litter_from_base64(base64_string, model_path, labels_path):
 
     return predictions
 
+# export (YOLO) model weights to onnx format
 def export_to_onnx(model_path):
     model = YOLO(model_path)
     model.export(format='onnx', opset=12, imgsz = [640, 640])
+    
+# Replace with the actual paths
+# MODEL_PATH = "/Users/hwey/Desktop/projects/PlogGo/backend/models/best.onnx"  # Path to the ONNX model
+# LABELS_PATH = "/Users/hwey/Desktop/projects/PlogGo/backend/models/litter_classes.txt"  # Path to labels file
+
+# # (for testing) load testing base64 encoded image
+# def load_sample_base64():
+#     with open("/Users/hwey/Desktop/projects/PlogGo/backend/models/test.jpg", "rb") as image_file:
+#         return base64.b64encode(image_file.read()).decode("utf-8")
+
+# if __name__ == "__main__":
+#     base64_image = load_sample_base64()
+#     detections = detect_litter_from_base64(base64_image, MODEL_PATH, LABELS_PATH)
+    
+#     print(detections)
