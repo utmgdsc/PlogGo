@@ -227,7 +227,7 @@ def get_badge():
     return jsonify({'badges': badges}), 200
 
 @api.route('/leaderboard', methods=['GET'])
-@jwt_required('headers')
+@jwt_required()
 def get_leaderboard():
     metric = request.args.get('metric', 'total_steps')
     count = int(request.args.get('count', '10'))
