@@ -10,6 +10,10 @@ import base64
 from flask_cors import CORS
 from utils.classifier import classify_litter
 from utils.helper import *
+from models.detect import detect_litter_from_base64
+from utils.ps_helper import load_litter_points
+from collections import Counter
+import json
 
 # initalize Flask app
 api = Blueprint('api', __name__, url_prefix='/api')
@@ -283,6 +287,42 @@ def store_litter():
         print(e)
         return jsonify({'error': str(e)}), 500
 
+
+# Return the classification of the litter
+@api.route('/detect-litter', methods=['POST'])
+def detect_litter():
+    try:
+        data = request.json  # Expect JSON input
+        if 'image' not in data:
+            return jsonify({'error': 'Missing image field'}), 400
+
+        base64_string = data['image']
+        model_path = "/Users/hwey/Desktop/projects/PlogGo/backend/models/best.onnx"  # Change this to your actual model path
+        labels_path = "/Users/hwey/Desktop/projects/PlogGo/backend/models/litter_classes.txt"  # Change to the actual labels path
+
+        # Run detection
+        predictions = detect_litter_from_base64(base64_string, model_path, labels_path)
+
+        point_sys = load_litter_points('/Users/hwey/Desktop/projects/PlogGo/backend/models/litter_point_system.txt')
+
+        detect_litter = [litter for litter in predictions if litter in point_sys]
+
+        litter_counts = Counter(detect_litter)
+
+        # calculate the total points
+        total_points = sum(point_sys[litter] * count for litter, count in litter_counts.items())
+
+        # Prepare the JSON result
+        result = {
+            "points": total_points,
+            "litter": {litter: count for litter, count in litter_counts.items()}
+        }
+        
+        points_earn = json.dumps(result)
+
+        return points_earn
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # Store user session history (distance, activities, etc.)
 @api.route('/end_session', methods=['POST'])

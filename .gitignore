@@ -48,3 +48,6 @@ node_modules
 /backend/*/__pycache__/*
 /backend/__init__.py
 /backend/.venv
+
+# DS_STORE
+.DS_STORE
