@@ -59,7 +59,7 @@ export default function Profile() {
 
   const handleSave = async () => {
     try {
-      await axios.put(`${API_URL}/user/update`, editedData);
+      await axios.put(`${API_URL}/user`, editedData);
       setData({ ...data, ...editedData });
       setIsEditing(false);
     } catch (error) {

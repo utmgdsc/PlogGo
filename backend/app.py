@@ -51,9 +51,11 @@ def get_current_user():
     if not email:
         return None
     jid = get_jwt()['jti']
-    if jid in db.token_blacklist.find_one({'jti': jid}):
+
+    print("JID:", jid)
+    if db.token_blacklist.find_one({'jti': jid}) is not None and db.token_blacklist.find_one({'jti': jid}) == jid:
         return None
-    return db.user.find_one({email}), email
+    return db.user.find_one({'email': email})
     
 
 ### all the routes will expect a JSON body ###
@@ -195,7 +197,7 @@ def update_user():
         
 
 # Get user information (Profile)
-@app.route('/profile', methods=['GET'])
+@api.route('/profile', methods=['GET'])
 @jwt_required()
 def get_profile():
     user = get_current_user()

@@ -3,7 +3,7 @@ import base64
 import cv2
 import numpy as np
 from ultralytics import YOLO
-model = YOLO("../models/best.pt")
+model = YOLO("models/best.pt")
 def classify_litter(base64_string):
     # Decode Base64 to bytes
     image_bytes = base64.b64decode(base64_string)
