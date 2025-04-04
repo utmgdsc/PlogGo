@@ -225,8 +225,7 @@ export const Layout = () => {
 
     return (
         <Stack.Navigator>
-            {/* {authState?.authenticated ? ( */}
-                {true ? (
+            {authState?.authenticated ? (
                 <>
                 <Stack.Screen 
                     name="MainTabs" 

@@ -6,11 +6,15 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import timedelta, datetime, timezone
 import os
+import boto3
 import base64
 from flask_cors import CORS
 from utils.classifier import classify_litter
 from utils.helper import *
-import uuid 
+from models.detect import detect_litter_from_base64
+from utils.ps_helper import load_litter_points
+from collections import Counter
+import json
 
 # initalize Flask app
 api = Blueprint('api', __name__, url_prefix='/api')
@@ -30,8 +34,17 @@ app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
 app.config["DEBUG"] = True
 jwt = JWTManager(app)
 
-sessions = {}
+# set up boto3 client for S3
+s3 = boto3.client('s3',
+    region_name=os.getenv("AWS_S3_REGION"),
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")
+)
+bucket_name = os.getenv("AWS_S3_BUCKET_NAME")
+region_name = os.getenv("AWS_S3_REGION")
 
+sessions = {}
+            
 def validate_jwt(token):
     """Manually validate a JWT token."""
     try:
@@ -52,9 +65,11 @@ def get_current_user():
     if not email:
         return None
     jid = get_jwt()['jti']
-    if jid in db.token_blacklist.find_one({'jti': jid}):
+
+    print("JID:", jid)
+    if db.token_blacklist.find_one({'jti': jid}) is not None and db.token_blacklist.find_one({'jti': jid}) == jid:
         return None
-    return db.user.find_one({email}), email
+    return db.user.find_one({'email': email})
     
 
 ### all the routes will expect a JSON body ###
@@ -73,6 +88,7 @@ def login():
     if not email or not password:
         return jsonify(message="Missing email or password"), 400
     # check if the username and password match
+    print(db)
     user = db.user.find_one({'email': email})
     print(user)
     if not user :
@@ -82,7 +98,7 @@ def login():
     else:
         # create JWT token
         access_token = create_access_token(identity=email)
-        return jsonify(user_id=user.get("_id"), access_token=access_token), 200
+        return jsonify(user_id=user.get("user_id"), access_token=access_token), 200
 
 # logout route
 @app.route('/logout', methods=['POST'])
@@ -144,33 +160,81 @@ def register():
     email = data.get('email')
     password = data.get('password')
     if not email or not password:
+        print("Missing email or password")
         return jsonify(message="Missing email or password"), 400
 
     # check if the username already exists
     if db.user.find_one({'email': email}):
+        print("Email already exists")
         return jsonify(message="Email already exists"), 400
 
     # hash the password
     hashed_password = generate_password_hash(password)
 
+    # create the default values
     # save user registered data to database
-    id = db.user.insert_one({
-        'email': email, 
+    db.user.insert_one({
+        'name': 'New User',
+        'pfp': 'https://example.com/default_profile_pic.jpg',  # Default profile picture URL
+        'description': '',
+        'total_steps': 0,
+        'total_distance': 0,
+        'total_time': 0,
+        'total_points': 0,
+        'total_litters': 0,
+        'streak': 0,
+        'highest_streak': 0,
+        'user_id': str(db.user.count_documents({}) + 1),  # Unique user ID
+        'session_id': str(db.user.count_documents({}) + 1),  # Unique session ID
+        'badges': [],
+        'email': email,
         'password': hashed_password
     })
-    return jsonify(message="User registered successfully", user_id=id), 201
+
+    return jsonify({"message":"User registered successfully"}), 201
 
 
 # Update user information (Profile), user needs to be authenticated
 @api.route('/user', methods=['PUT'])
 @jwt_required()
 def update_user():
-    pass
+    user = db.user.find_one({'email': get_jwt_identity()})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    
+    data = request.get_json()
+    update_fields = {}
+    if "name" in data:
+        update_fields["name"] = data["name"]
+    if "pfp" in data:
+        header, encoded = data["pfp"].split(",", 1)
+        image_data = base64.b64decode(encoded)
 
-# Update user information (Profile)
-@app.route('/profile/<string:user_id>', methods=['GET'])
-def get_user(user_id):
-    user = db.user.find_one({"_id": user_id}) 
+        key = f"profile_pics/{user.get('email')}.jpg"
+        s3.put_object(Bucket=bucket_name, Key=key, Body=image_data, ContentType='image/jpeg')
+
+        s3_url = f"https://{bucket_name}.s3.{region_name}.amazonaws.com/{key}"
+        update_fields["pfp"] = s3_url
+    if "description" in data:
+        update_fields["description"] = data["description"]
+    if update_fields:
+        db.user.update_one({'email': get_jwt_identity()}, {"$set": update_fields})
+    
+    user.update(update_fields)  
+    
+    return jsonify({
+        "name": user.get("name"),
+        "email": user.get("email"),
+        "pfp": user.get("pfp",""),
+        "description": user.get("description",""),
+    }), 200
+        
+
+# Get user information (Profile)
+@api.route('/profile', methods=['GET'])
+@jwt_required()
+def get_profile():
+    user = get_current_user()
     if user:
         return jsonify({
             "name": user.get("name"),
@@ -178,7 +242,7 @@ def get_user(user_id):
             "pfp": user.get("pfp"),
             "description": user.get("description"),
             "streak": user.get("streak"),
-            "badges": [{"title":badge.title, "icon":"badge".icon} for badge in user.get("badges")]
+            "badges": [{"title":badge.title, "icon":badge.icon} for badge in user.get("badges")]
         }), 200
     return jsonify({"error": "User not found"}), 404
 
@@ -193,9 +257,9 @@ def get_badge():
     return jsonify({'badges': badges}), 200
 
 @api.route('/leaderboard', methods=['GET'])
-@jwt_required('headers')
+@jwt_required()
 def get_leaderboard():
-    metric = request.args.get('metric', 'total_steps')
+    metric = request.args.get('metric', 'total_points')
     count = int(request.args.get('count', '10'))
     try:
         count = int(count)  # Convert to int safely
@@ -205,12 +269,9 @@ def get_leaderboard():
     leaderboard = []
     for user in users:
         leaderboard.append({
-            "name": user['name'],
             "email": user['email'],
-            "username": user['user_id'],
-            "total_steps": user.get('total_steps', 0),
-            "total_distance": user.get('total_distance', 0),
-            "total_time": user.get('total_time', 0),
+            metric: user.get(metric, 0),
+            "name": user.get('name', '2lazy2setaname')
         })
     return jsonify({'metric': metric, 'leaderboard': leaderboard}), 200
     
@@ -226,24 +287,20 @@ def get_user_data():
 @jwt_required()
 def get_metrics():
     user = db.user.find_one({'email': get_jwt_identity()})
-    return jsonify({'time':user.total_time, 
-                    'distance':user.total_distance, 
-                    'steps':user.total_steps, 
-                    'calories':user.total_steps*0.04,
-                    'curr_streak':user.streak}), 200
+    print("User:", user)
+    return jsonify({'time':user.get("total_time"), 
+                    'distance':user.get("total_distance"),
+                    'steps':user.get("total_steps"),
+                    'calories':user.get("total_steps")*0.04,
+                    'curr_streak':user.get("streak"),
+                    'points':user.get("total_points",0),
+                    'litter':user.get("total_litters",0)}), 200 
 
 # Get current daily challenge (pick randomly 1 challenge from challenges db)
 @api.route('/daily-challenge', methods=['GET'])
 def get_daily_challenge():
     challenge = db.challenges.aggregate([{"$sample": {"size": 1}}])
-    return jsonify({'challenge': challenge}), 200
-
-
-# Return the classification of the litter
-@api.route('/classify-litter', methods=['POST'])
-def classify_litter():
-    pass
-
+    return jsonify({'challenge': challenge}), 200 
 
 # Store the litter data in the database
 @api.route('/store-litter', methods=['POST'])
@@ -252,16 +309,76 @@ def store_litter():
         data = request.json  # Expecting JSON body
         if 'image' not in data:
             return jsonify({'error': 'Missing image field'}), 400
-
-        image_data = base64.b64decode(data['image'])  # Decode Base64
-        # classification = classify_litter(image_data) 
-        # with open("received.jpg", "wb") as f:
-        #     f.write(image_data)
-        return jsonify({"points":10, "litters":{"can":1, "bottle":2}})
+        results = classify_litter(data['image'])
+        points = sum(results.values()) * 10  # 10 points per litter item
+        return jsonify({"points":points, "litters":results})
 
     except Exception as e:
+        print(e)
         return jsonify({'error': str(e)}), 500
 
+
+# Return the points earn of litter detections
+@api.route('/detect-litter', methods=['POST'])
+@jwt_required()
+def detect_litter():
+    try:
+        data = request.json  # Expect JSON input
+        if 'image' not in data:
+            return jsonify({'error': 'Missing image field'}), 400
+
+        base64_string = data['image']
+        model_path = "/Users/hwey/Desktop/projects/PlogGo/backend/models/best.onnx"  # Change this to your actual model path
+        labels_path = "/Users/hwey/Desktop/projects/PlogGo/backend/models/litter_classes.txt"  # Change to the actual labels path
+
+        # Run detection
+        detections = detect_litter_from_base64(base64_string, model_path, labels_path)
+
+        # Define the point system for each litter type
+        point_sys = {
+            "Aluminium foil": 2,
+            "Bottle cap": 3,
+            "Bottle": 5,
+            "Broken glass": 4,
+            "Can": 4,
+            "Carton": 3,
+            "Cigarette": 6,
+            "Cup": 3,
+            "Lid": 2,
+            "Other litter": 1,
+            "Other plastic": 4,
+            "Paper": 2,
+            "Plastic bag - wrapper": 5,
+            "Plastic container": 5,
+            "Pop tab": 2,
+            "Straw": 4,
+            "Styrofoam piece": 5,
+            "Unlabeled litter": 1
+        }
+
+        # Count detected litter
+        litter_counts = Counter(detections)
+
+        # calculate the total points
+        total_points = sum(point_sys[litter] * count for litter, count in litter_counts.items())
+
+        # Update user points in the database   
+        db.user.update_one(
+            {'email': get_jwt_identity()},
+            {'$inc': {'total_points': total_points, 'total_litters': sum(litter_counts.values())}}
+        )
+
+        # Prepare the JSON result
+        result = {
+            "points": total_points,
+            "litter": {litter: count for litter, count in litter_counts.items()}
+        }
+        
+        points_earn = json.dumps(result)
+
+        return points_earn
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # Store user session history (distance, activities, etc.)
 @api.route('/end_session', methods=['POST'])
@@ -321,4 +438,4 @@ app.register_blueprint(api)
 
 if __name__ == '__main__':
    
-    app.run(host='0.0.0.0', port=80, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)

@@ -114,6 +114,7 @@ export default function Camera() {
       if (!photo || !photo.base64) {
         throw new Error("Photo data is missing");
       }
+      
       // Make API call to detect litter
       const response = await axios.post(`${API_URL}/store-litter`, { image: photo.base64 });
       const data = response.data;
@@ -126,7 +127,7 @@ export default function Camera() {
         let challengeCompleted = false;
         let challengeMessage = "";
 
-        // Example: Check if the challenge was to collect 2 bottles
+        // Check if the challenge was to collect 2 bottles
         if (litterCounts.bottle && litterCounts.bottle >= 2) {
           challengeCompleted = true;
           challengeMessage = "🎉 Challenge Completed! You've collected 2 bottles today!";

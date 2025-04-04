@@ -30,6 +30,14 @@ const Login = () => {
     }
 
   const login =  async () => {
+      if (email === '') {
+        alert('Please enter your email!');
+        return;
+      }
+      if (password === '') {
+        alert('Please enter your password!');
+        return;
+      }
       const result = await onLogin!(email, password);
       console.log(result);
       if (result && result.error) {
@@ -54,12 +62,14 @@ const Login = () => {
             onChangeText={(text: string) => setEmail(text)}
             value={email}
             placeholder="Email"
+            placeholderTextColor="black"
           />
           <TextInput
             style={styles.input}
             onChangeText={(text: string) => setPassword(text)}
             value={password}
             placeholder="Password"
+            placeholderTextColor="black"
             secureTextEntry={hidden}
           />
           <View style = {styles.emptyspace}/>

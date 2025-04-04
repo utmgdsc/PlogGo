@@ -9,6 +9,7 @@ import { API_URL } from '../context/AuthContext';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
+import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -23,14 +24,16 @@ export default function Metrics() {
       icon: 'footsteps' as 'footsteps',
       unit: 'steps',
       goal: 10000,
-      current: Math.round(10000 * (progress.Steps / 100)),
+      percent: (100 * (progress.Steps / 10000)).toFixed(2),
+      current: progress.Steps,
       color: '#4CAF50'
     },
     Distance: {
       icon: 'walk' as 'walk',
       unit: 'km',
-      goal: 5,
-      current: ((5 * progress.Distance) / 100).toFixed(1),
+      goal: 500,
+      percent: (100 * (progress.Distance / 500)).toFixed(2),
+      current: progress.Distance,
       color: '#2196F3'
     }
   };
@@ -157,7 +160,7 @@ export default function Metrics() {
               width={18}
               rotation={0}
               backgroundWidth={8}
-              fill={currentProgress}
+              fill={Number(metrics[selectedOption].percent)}
               tintColor={metrics[selectedOption].color}
               backgroundColor="#E8F5E9"
               lineCap="round"
@@ -194,7 +197,7 @@ export default function Metrics() {
             <View style={styles.progressDetailItem}>
               <Text style={styles.progressDetailLabel}>Completed</Text>
               <Text style={[styles.progressDetailValue, {color: metrics[selectedOption].color}]}>
-                {currentProgress}%
+                {metrics[selectedOption].percent}%
               </Text>
             </View>
           </View>
@@ -238,9 +241,9 @@ export default function Metrics() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <Ionicons name="flame" size={28} color="#2196F3" />
+              <FontAwesome5 name="coins" size={28} color="#2196F3" />
               <Text style={styles.summaryValue}>{progress.Curr_Streak}</Text>
-              <Text style={styles.summaryLabel}>Current Streak</Text>
+              <Text style={styles.summaryLabel}>Total Points</Text>
             </LinearGradient>
             
             <LinearGradient
