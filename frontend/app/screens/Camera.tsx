@@ -87,8 +87,8 @@ export default function Camera() {
       if (!photo || !photo.base64) {
         throw new Error("Photo data is missing");
       }
-      console.log("Sending photo to server..."+`${API_URL}/store-litter` );
-      const response = await axios.post(`${API_URL}/store-litter`, { image: photo.base64})
+      console.log("Sending photo to server..."+`${API_URL}/detect-litter` );
+      const response = await axios.post(`${API_URL}/detect-litter`, { image: photo.base64})
       const data = await response.data;
       console.log("get",data);
       

@@ -34,14 +34,39 @@ export default function Login() {
 
 
   const register =  async () => {
+    console.log('password: ' + password);
+    console.log('repeatedPassword: ' + repeatedPassword);
+    console.log('email: ' + email);
+    if (email === '') {
+      alert('Please enter your email!');
+      return;
+    }
+    if (password === '') {
+      alert('Please enter your password!');
+      return;
+    }
+    if (repeatedPassword === '') {
+      alert('Please repeat your password!');
+      return;
+    }
+    if (password !== repeatedPassword) {
+      alert('Passwords do not match!');
+      return;
+    }
     if (onRegister) {
       console.log('registering');
+      // check if password and repeatedPassword are the same
       const result = await onRegister!(email, password);
       if (result && result.error) {
+        console.log('Error signing up...', result.msg);
         alert(result.msg);
+        // reset the password and repeatedPassword fields
+        setPassword('');
+        setRepeatedPassword('');
       }
-      // redirect to login page
-      navigation.navigate('Login');
+      else {
+            navigation.navigate('Login');
+      }
     } else {
       alert('Login function is not available.');
     }
@@ -69,18 +94,22 @@ export default function Login() {
         onChangeText={(text: string) => setEmail(text)}
         value={email}
         placeholder="Email"
+        placeholderTextColor="black"
       />
       <TextInput
         style={styles.input}
         onChangeText={setPassword}
         value={password}
         placeholder="Password"
+        placeholderTextColor="black"
+        secureTextEntry
       />
       <TextInput
         style={styles.input}
         onChangeText={setRepeatedPassword}
         value={repeatedPassword}
         placeholder="Confirm Password"
+        placeholderTextColor="black"
         secureTextEntry
       />
       <View style = {styles.emptyspace}/>

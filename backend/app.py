@@ -198,7 +198,6 @@ def update_user():
         "description": user.get("description",""),
     }), 200
         
-        
 
 # Get user information (Profile)
 @api.route('/profile', methods=['GET'])
@@ -263,6 +262,7 @@ def get_metrics():
                     'steps':user.get("total_steps"),
                     'calories':user.get("total_steps")*0.04,
                     'curr_streak':user.get("streak"),
+                    'points':user.get("total_points",0),
                     'litter':user.get("total_litters",0)}), 200 
 
 # Get current daily challenge (pick randomly 1 challenge from challenges db)
@@ -273,6 +273,7 @@ def get_daily_challenge():
 
 
 # Store the litter data in the database
+@jwt_required()
 @api.route('/store-litter', methods=['POST'])
 def store_litter():
     try:
@@ -289,6 +290,7 @@ def store_litter():
 
 
 # Return the classification of the litter
+@jwt_required()
 @api.route('/detect-litter', methods=['POST'])
 def detect_litter():
     try:
@@ -297,13 +299,13 @@ def detect_litter():
             return jsonify({'error': 'Missing image field'}), 400
 
         base64_string = data['image']
-        model_path = "/Users/hwey/Desktop/projects/PlogGo/backend/models/best.onnx"  # Change this to your actual model path
-        labels_path = "/Users/hwey/Desktop/projects/PlogGo/backend/models/litter_classes.txt"  # Change to the actual labels path
+        model_path = "C:/Users/agent/OneDrive/Desktop/CS_Personal_Projects/ploggo/PlogGo/backend/models/best.onnx"  # Change this to your actual model path
+        labels_path = "C:/Users/agent/OneDrive/Desktop/CS_Personal_Projects/ploggo/PlogGo/backend/models/litter_classes.txt"  # Change to the actual labels path
 
         # Run detection
         predictions = detect_litter_from_base64(base64_string, model_path, labels_path)
 
-        point_sys = load_litter_points('/Users/hwey/Desktop/projects/PlogGo/backend/models/litter_point_system.txt')
+        point_sys = load_litter_points('C:/Users/agent/OneDrive/Desktop/CS_Personal_Projects/ploggo/PlogGo/backend/models/litter_point_system.txt')
 
         detect_litter = [litter for litter in predictions if litter in point_sys]
 
@@ -317,7 +319,12 @@ def detect_litter():
             "points": total_points,
             "litter": {litter: count for litter, count in litter_counts.items()}
         }
-        
+        # update user points in the database
+        user = db.user.find_one({'email': get_jwt_identity()})
+        db.user.update_one(
+            {'email': get_jwt_identity()},
+            {'$inc': {'total_points': total_points, 'total_litters': len(predictions)}}
+        )
         points_earn = json.dumps(result)
 
         return points_earn

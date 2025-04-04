@@ -9,6 +9,7 @@ import { API_URL } from '../context/AuthContext';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
+import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -240,9 +241,9 @@ export default function Metrics() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <Ionicons name="flame" size={28} color="#2196F3" />
+              <FontAwesome5 name="coins" size={28} color="#2196F3" />
               <Text style={styles.summaryValue}>{progress.Curr_Streak}</Text>
-              <Text style={styles.summaryLabel}>Current Streak</Text>
+              <Text style={styles.summaryLabel}>Total Points</Text>
             </LinearGradient>
             
             <LinearGradient
