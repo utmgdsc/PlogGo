@@ -228,7 +228,7 @@ def get_badge():
 @api.route('/leaderboard', methods=['GET'])
 @jwt_required()
 def get_leaderboard():
-    metric = request.args.get('metric', 'total_steps')
+    metric = request.args.get('metric', 'total_points')
     count = int(request.args.get('count', '10'))
     try:
         count = int(count)  # Convert to int safely
@@ -273,7 +273,6 @@ def get_daily_challenge():
 
 
 # Store the litter data in the database
-@jwt_required()
 @api.route('/store-litter', methods=['POST'])
 def store_litter():
     try:
@@ -290,8 +289,8 @@ def store_litter():
 
 
 # Return the classification of the litter
-@jwt_required()
 @api.route('/detect-litter', methods=['POST'])
+@jwt_required()
 def detect_litter():
     try:
         data = request.json  # Expect JSON input
