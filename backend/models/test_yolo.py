@@ -2,7 +2,7 @@ from ultralytics import YOLO
 
 def main():
     # Load the best trained YOLO model
-    model = YOLO("best2.pt")  # Adjust path if needed
+    model = YOLO("best.pt")  # Adjust path if needed
 
     # Perform validation (testing) using the test dataset
     metrics = model.val(data="D://projects/PlogGo/models/data.yaml", 
