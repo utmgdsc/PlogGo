@@ -6,6 +6,7 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import timedelta, datetime, timezone
 import os
+import boto3
 import base64
 from flask_cors import CORS
 from utils.classifier import classify_litter
@@ -32,6 +33,15 @@ db = client["PlogGo"]
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
 app.config["DEBUG"] = True
 jwt = JWTManager(app)
+
+# set up boto3 client for S3
+s3 = boto3.client('s3',
+    region_name=os.getenv("AWS_S3_REGION"),
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")
+)
+bucket_name = os.getenv("AWS_S3_BUCKET_NAME")
+region_name = os.getenv("AWS_S3_REGION")
 
 sessions = {}
             
@@ -161,9 +171,23 @@ def register():
     # hash the password
     hashed_password = generate_password_hash(password)
 
+    # create the default values
     # save user registered data to database
     db.user.insert_one({
-        'email': email, 
+        'name': 'New User',
+        'pfp': 'https://example.com/default_profile_pic.jpg',  # Default profile picture URL
+        'description': '',
+        'total_steps': 0,
+        'total_distance': 0,
+        'total_time': 0,
+        'total_points': 0,
+        'total_litters': 0,
+        'streak': 0,
+        'highest_streak': 0,
+        'user_id': str(db.user.count_documents({}) + 1),  # Unique user ID
+        'session_id': str(db.user.count_documents({}) + 1),  # Unique session ID
+        'badges': [],
+        'email': email,
         'password': hashed_password
     })
     return jsonify({"message":"User registered successfully"}), 201
@@ -178,12 +202,18 @@ def update_user():
         return jsonify({"error": "User not found"}), 404
     
     data = request.get_json()
-    
     update_fields = {}
     if "name" in data:
         update_fields["name"] = data["name"]
     if "pfp" in data:
-        update_fields["pfp"] = data["pfp"]
+        header, encoded = data["pfp"].split(",", 1)
+        image_data = base64.b64decode(encoded)
+
+        key = f"profile_pics/{user.get("email")}.jpg"
+        s3.put_object(Bucket=bucket_name, Key=key, Body=image_data, ContentType='image/jpeg')
+
+        s3_url = f"https://{bucket_name}.s3.{region_name}.amazonaws.com/{key}"
+        update_fields["pfp"] = s3_url
     if "description" in data:
         update_fields["description"] = data["description"]
     if update_fields:

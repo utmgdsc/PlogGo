@@ -11,9 +11,9 @@ interface UserProfile {
   name: string;
   email: string;
   username: string;
-  total_steps: number;
   total_distance: number;
   total_time: number;
+  total_points: number; // Added total_points property
   profile_picture?: string;
 }
 
@@ -26,7 +26,7 @@ const DEFAULT_USERS: UserProfile[] = [
     name: "John Doe",
     email: "johndoe@example.com",
     username: "johndoe123",
-    total_steps: 15000,
+    total_points: 15000,
     total_distance: 10.5,
     total_time: 120,
   },
@@ -34,7 +34,7 @@ const DEFAULT_USERS: UserProfile[] = [
     name: "Jane Smith",
     email: "janesmith@example.com",
     username: "janesmith456",
-    total_steps: 14000,
+    total_points: 14000,
     total_distance: 9.8,
     total_time: 110,
   },
@@ -42,7 +42,7 @@ const DEFAULT_USERS: UserProfile[] = [
     name: "Alice John",
     email: "alice@example.com",
     username: "alicej",
-    total_steps: 13000,
+    total_points: 13000,
     total_distance: 9.2,
     total_time: 100,
   },
@@ -50,7 +50,7 @@ const DEFAULT_USERS: UserProfile[] = [
     name: "Bob Brown",
     email: "bob@example.com",
     username: "bobbrown",
-    total_steps: 12000,
+    total_points: 12000,
     total_distance: 8.5,
     total_time: 90,
   },
@@ -58,7 +58,7 @@ const DEFAULT_USERS: UserProfile[] = [
     name: "Charlie White",
     email: "charlie@example.com",
     username: "charliewhite",
-    total_steps: 11000,
+    total_points: 11000,
     total_distance: 7.8,
     total_time: 80,
   },
@@ -66,47 +66,15 @@ const DEFAULT_USERS: UserProfile[] = [
     name: "David Black",
     email: "david@example.com",
     username: "davidblack",
-    total_steps: 10000,
-    total_distance: 7.0,
-    total_time: 70,
-  },
-  {
-    name: "David Black",
-    email: "david@example.com",
-    username: "davidblack2",
-    total_steps: 10000,
-    total_distance: 7.0,
-    total_time: 70,
-  },
-  {
-    name: "David Black",
-    email: "david@example.com",
-    username: "davidblack3",
-    total_steps: 10000,
-    total_distance: 7.0,
-    total_time: 70,
-  },
-  {
-    name: "David Black",
-    email: "david@example.com",
-    username: "davidblack4",
-    total_steps: 10000,
-    total_distance: 7.0,
-    total_time: 70,
-  },
-  {
-    name: "David Black",
-    email: "david@example.com",
-    username: "davidblack5",
-    total_steps: 10000,
+    total_points: 10000,
     total_distance: 7.0,
     total_time: 70,
   }
 ];
 
 // Selected metric to display
-const METRIC = "total_steps"; // Change this to "total_distance" or "total_time" if needed
-const METRIC_LABEL = "Steps"; // Label for the metric
+const METRIC = "total_points"; // Change this to "total_distance" or "total_time" if needed
+const METRIC_LABEL = "Points"; // Label for the metric
 
 // Get screen width
 const { width } = Dimensions.get('window');
@@ -116,19 +84,17 @@ export default function Leaderboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log("Fetching leaderboard data...");
     fetchData();
   }, []);
 
   const fetchData = async () => {
     try {
       const response = await axios.get(`${API_URL}/leaderboard?count=10`);
-
-      console.log(response.data);
       if (response.data && Array.isArray(response.data.leaderboard) && response.data.leaderboard.length > 0) {
         setData(response.data.leaderboard);
       }
     } catch (error) {
-      console.log(data);
       console.log("Error fetching leaderboard:", error);
     } finally {
       setLoading(false);
@@ -159,7 +125,7 @@ export default function Leaderboard() {
 
   // Format score based on metric
   const formatScore = (value: number) => {
-    if (METRIC === "total_steps") {
+    if (METRIC === "total_points") {
       return value.toLocaleString();
     } else if (METRIC === "total_distance") {
       return `${value.toFixed(1)} km`;

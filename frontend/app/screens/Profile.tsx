@@ -5,6 +5,8 @@ import { API_URL } from "../context/AuthContext";
 import { Image } from 'expo-image';
 import { useFonts } from "expo-font";
 import { SplashScreen } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
 
 export default function Profile() {
 
@@ -59,11 +61,40 @@ export default function Profile() {
 
   const handleSave = async () => {
     try {
-      await axios.put(`${API_URL}/user`, editedData);
+      // Only include base64 pfp if it was updated
+      const isBase64 = editedData.pfp?.startsWith("data:image");
+  
+      const payload = {
+        name: editedData.name,
+        description: editedData.description,
+        ...(isBase64 && { pfp: editedData.pfp })
+      };
+  
+      await axios.put(`${API_URL}/user`, payload);
       setData({ ...data, ...editedData });
       setIsEditing(false);
     } catch (error) {
       console.error("Error updating profile:", error);
+    }
+  };
+
+  const handlePickImage = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permissionResult.granted === false) {
+      alert("Permission to access camera roll is required!");
+      return;
+    }
+  
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      base64: true,
+      quality: 0.7,
+    });
+  
+    if (!result.canceled && result.assets.length > 0) {
+      const image = result.assets[0];
+      const base64Image = `data:image/jpeg;base64,${image.base64}`;
+      setEditedData({ ...editedData, pfp: base64Image });
     }
   };
 
@@ -91,9 +122,9 @@ export default function Profile() {
     <View style={styles.container}>
       {/* Profile Section */}
       <View style={styles.profile}>
-        <TouchableOpacity onPress={() => setIsEditing(true)}>
-          <Image style={styles.pfp} source={{ uri: editedData.pfp }} contentFit="cover" />
-        </TouchableOpacity>
+      <TouchableOpacity onPress={isEditing ? handlePickImage : () => setIsEditing(true)}>
+        <Image style={styles.pfp} source={{ uri: editedData.pfp }} contentFit="cover" />
+      </TouchableOpacity>
         {isEditing ? (
           <TextInput style={styles.input} value={editedData.name} onChangeText={(text) => setEditedData({ ...editedData, name: text })} />
         ) : (
