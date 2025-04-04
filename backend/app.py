@@ -190,6 +190,7 @@ def register():
         'email': email,
         'password': hashed_password
     })
+
     return jsonify({"message":"User registered successfully"}), 201
 
 
@@ -301,7 +302,6 @@ def get_daily_challenge():
     challenge = db.challenges.aggregate([{"$sample": {"size": 1}}])
     return jsonify({'challenge': challenge}), 200 
 
-
 # Store the litter data in the database
 @api.route('/store-litter', methods=['POST'])
 def store_litter():
@@ -320,6 +320,7 @@ def store_litter():
 
 # Return the points earn of litter detections
 @api.route('/detect-litter', methods=['POST'])
+@jwt_required()
 def detect_litter():
     try:
         data = request.json  # Expect JSON input
@@ -360,6 +361,12 @@ def detect_litter():
 
         # calculate the total points
         total_points = sum(point_sys[litter] * count for litter, count in litter_counts.items())
+
+        # Update user points in the database   
+        db.user.update_one(
+            {'email': get_jwt_identity()},
+            {'$inc': {'total_points': total_points, 'total_litters': sum(litter_counts.values())}}
+        )
 
         # Prepare the JSON result
         result = {
