@@ -190,6 +190,7 @@ def register():
         'email': email,
         'password': hashed_password
     })
+
     return jsonify({"message":"User registered successfully"}), 201
 
 
@@ -301,7 +302,6 @@ def get_daily_challenge():
     challenge = db.challenges.aggregate([{"$sample": {"size": 1}}])
     return jsonify({'challenge': challenge}), 200 
 
-
 # Store the litter data in the database
 @api.route('/store-litter', methods=['POST'])
 def store_litter():
@@ -318,7 +318,7 @@ def store_litter():
         return jsonify({'error': str(e)}), 500
 
 
-# Return the classification of the litter
+# Return the points earn of litter detections
 @api.route('/detect-litter', methods=['POST'])
 @jwt_required()
 def detect_litter():
@@ -328,32 +328,52 @@ def detect_litter():
             return jsonify({'error': 'Missing image field'}), 400
 
         base64_string = data['image']
-        model_path = "C:/Users/agent/OneDrive/Desktop/CS_Personal_Projects/ploggo/PlogGo/backend/models/best.onnx"  # Change this to your actual model path
-        labels_path = "C:/Users/agent/OneDrive/Desktop/CS_Personal_Projects/ploggo/PlogGo/backend/models/litter_classes.txt"  # Change to the actual labels path
+        model_path = "/Users/hwey/Desktop/projects/PlogGo/backend/models/best.onnx"  # Change this to your actual model path
+        labels_path = "/Users/hwey/Desktop/projects/PlogGo/backend/models/litter_classes.txt"  # Change to the actual labels path
 
         # Run detection
-        predictions = detect_litter_from_base64(base64_string, model_path, labels_path)
+        detections = detect_litter_from_base64(base64_string, model_path, labels_path)
 
-        point_sys = load_litter_points('C:/Users/agent/OneDrive/Desktop/CS_Personal_Projects/ploggo/PlogGo/backend/models/litter_point_system.txt')
+        # Define the point system for each litter type
+        point_sys = {
+            "Aluminium foil": 2,
+            "Bottle cap": 3,
+            "Bottle": 5,
+            "Broken glass": 4,
+            "Can": 4,
+            "Carton": 3,
+            "Cigarette": 6,
+            "Cup": 3,
+            "Lid": 2,
+            "Other litter": 1,
+            "Other plastic": 4,
+            "Paper": 2,
+            "Plastic bag - wrapper": 5,
+            "Plastic container": 5,
+            "Pop tab": 2,
+            "Straw": 4,
+            "Styrofoam piece": 5,
+            "Unlabeled litter": 1
+        }
 
-        detect_litter = [litter for litter in predictions if litter in point_sys]
-
-        litter_counts = Counter(detect_litter)
+        # Count detected litter
+        litter_counts = Counter(detections)
 
         # calculate the total points
         total_points = sum(point_sys[litter] * count for litter, count in litter_counts.items())
+
+        # Update user points in the database   
+        db.user.update_one(
+            {'email': get_jwt_identity()},
+            {'$inc': {'total_points': total_points, 'total_litters': sum(litter_counts.values())}}
+        )
 
         # Prepare the JSON result
         result = {
             "points": total_points,
             "litter": {litter: count for litter, count in litter_counts.items()}
         }
-        # update user points in the database
-        user = db.user.find_one({'email': get_jwt_identity()})
-        db.user.update_one(
-            {'email': get_jwt_identity()},
-            {'$inc': {'total_points': total_points, 'total_litters': len(predictions)}}
-        )
+        
         points_earn = json.dumps(result)
 
         return points_earn

@@ -1,9 +1,48 @@
 import cv2
 import numpy as np
 import base64
+import onnxruntime as ort
+from PIL import Image
+from io import BytesIO
+
+def base64_to_image(base64_string):
+        """
+        Convert base64 string to image.
+        
+        Args:
+            base64_string (str): Base64 encoded image string
+            
+        Returns:
+            numpy.ndarray: Image in BGR format for OpenCV processing
+        """
+        # If string comes with data URI scheme, remove it
+        if ',' in base64_string:
+            base64_string = base64_string.split(',')[1]
+            
+        # Decode base64 string
+        img_data = base64.b64decode(base64_string)
+        
+        # Convert to PIL Image
+        img_pil = Image.open(BytesIO(img_data))
+        
+        # Convert to numpy array (RGB)
+        img_np = np.array(img_pil)
+        
+        # Convert RGB to BGR 
+        if len(img_np.shape) == 3 and img_np.shape[2] == 3:
+            img_np = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+            
+        return img_np
 
 # convert base 64 to cv2 compatible image format
 def base64_to_opencv(base64_string):
+    # Make sure to handle potential padding issues in base64 strings
+    base64_string = base64_string.strip()
+    # Add padding if necessary
+    padding = len(base64_string) % 4
+    if padding:
+        base64_string += '=' * (4 - padding)
+        
     img_data = base64.b64decode(base64_string)
     np_arr = np.frombuffer(img_data, np.uint8)
     img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
@@ -11,16 +50,16 @@ def base64_to_opencv(base64_string):
 
 # run inference with onnx runtime 
 def run_model(model_path, img):
-    # read the trained onnx model
-    net = cv2.dnn.readNetFromONNX(model_path)
-
-    # feed the model with processed image
-    net.setInput(img)
-
-    # run the inference
-    out = net.forward()
-
-    return out
+    # Create ONNX Runtime session
+    session = ort.InferenceSession(model_path)
+    
+    # Get input name
+    input_name = session.get_inputs()[0].name
+    
+    # Run inference
+    results = session.run(None, {input_name: img.astype(np.float32)})
+    
+    return results[0] 
 
 def NMS(boxes, conf_scores, iou_thresh = 0.50):
     #  boxes [[x1,y1, x2,y2], [x1,y1, x2,y2], ...]
@@ -98,7 +137,7 @@ def load_labels(path):
         classes = content.split('\n')
     return classes
 
-def filter_Detections(results, thresh = 0.5):
+def filter_Detections(results, thresh = 0.1):
     # if model is trained on 1 class only
     if len(results[0]) == 5:
         # filter out the detections with confidence > thresh
@@ -128,7 +167,7 @@ def filter_Detections(results, thresh = 0.5):
 
 def detect_litter_from_base64(base64_string, model_path, labels_path):
     # convert base64 encoded images to cv2 compatible type
-    image = base64_to_opencv(base64_string)
+    image = base64_to_image(base64_string)
 
     # YOLO model need RGB image
     img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -148,8 +187,8 @@ def detect_litter_from_base64(base64_string, model_path, labels_path):
 
     # run model and get inferences
     output = run_model(model_path, img)
-
-    # remove the first index because it is one image
+    
+    # remove the first index
     results = output[0]
 
     # tranpose the image matrix
@@ -159,15 +198,11 @@ def detect_litter_from_base64(base64_string, model_path, labels_path):
     results = filter_Detections(results)
 
     # rescale the images back to its original form
-    rescaled_results, confidences = rescale_back(results, img_width, img_height)
-
+    # rescaled_results, confidences = rescale_back(results, img_width, img_height)
+    
     # Load class labels
     classes = load_labels(labels_path) 
 
-    # Store predictions in requested format
-    predictions = [
-        {"class": classes[int(result[-1])], "confidence": float(confidences[i])}
-        for i, result in enumerate(rescaled_results)
-    ]
+    predictions = [classes[int(result[-2])] for result in results]
 
     return predictions
