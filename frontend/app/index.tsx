@@ -47,7 +47,7 @@ const MainTabs = () => {
         >
             <Tab.Screen
                 name="Home"
-                component={Tracking}
+                component={Home}
                 options={{
                     title: 'Home',
                     tabBarLabel: () => null,
@@ -110,7 +110,9 @@ export const Layout = () => {
 
     return (
         <Stack.Navigator>
-            {authState?.authenticated ? (
+            {/* {authState?.authenticated ? ( */}
+                {true ? (
+                <>
                 <Stack.Screen 
                     name="MainTabs" 
                     component={MainTabs} 
@@ -118,6 +120,15 @@ export const Layout = () => {
                         headerShown: false, // Hides stack header since tabs already have headers
                     }}
                 />
+                <Stack.Screen
+                    name= "Tracking"
+                    component={Tracking}
+                    options={{
+                        headerShown: true,
+                        title: "Tracking",
+                    }}
+                    />
+                </>
             ) : (
                 <>
                     <Stack.Screen name="Login" component={Login} options={{ headerShown: false }}/>
