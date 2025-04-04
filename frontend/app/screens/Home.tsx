@@ -1,9 +1,8 @@
-import { Text, View, StyleSheet, Image, ScrollView } from "react-native";
+import { Text, View, StyleSheet, Image, ScrollView, TouchableOpacity, Animated } from "react-native";
 import { useAuth } from '../context/AuthContext';
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useFonts } from 'expo-font';
 import { SplashScreen, useNavigation } from 'expo-router';
-
 
 export default function Home() {
   // hook for getting token
@@ -29,6 +28,8 @@ export default function Home() {
     'Poppins-Bold': require('../../assets/fonts/Poppins-Bold.ttf'),
   });
   const navigation = useNavigation<any>();
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
   useEffect(() => {
         if (loaded || error) {
           SplashScreen.hideAsync();
@@ -43,136 +44,150 @@ export default function Home() {
     return null; // Optionally return a loading state until the fonts are loaded
   }
   const handleStartSession = async () => {
-    navigation.navigate("Tracking");
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      navigation.navigate("Tracking");
+    });
+  }
+
+  const handleChallengePress = () => {
+    navigation.navigate("Camera");
   }
 
   return (
     <ScrollView 
-            style={styles.scrollContainer}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
+      style={styles.scrollContainer}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.scrollContent}
+    >
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>PlogGo</Text>
+          <Text style={styles.headerSubtitle}>Make Earth Cleaner, One Step at a Time</Text>
+        </View>
+
+        <TouchableOpacity 
+          style={styles.collectioncard}
+          onPress={handleChallengePress}
+          activeOpacity={0.9}
+        >
+          <Image 
+            source={require('../../assets/images/bottles.png')}
+            style={styles.image} 
+            resizeMode="cover"
+          />
+          <View style={styles.cardContent}>
+            <Text style={styles.collectionText}>20 Bottles Day Challenge</Text>
+            <Text style={styles.collection2Text}>
+              Join the 20 Bottles a Day Challenge and make a difference! Collect and properly dispose of at least 20 plastic bottles today while plogging. Track your progress, inspire others, and contribute to a greener planet—one bottle at a time! 🌱💪
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <Animated.View style={[styles.buttonContainer, { transform: [{ scale: scaleAnim }] }]}>
+          <TouchableOpacity 
+            style={styles.startbutton}
+            onPress={handleStartSession}
+            activeOpacity={0.8}
           >
-    <View style={styles.container}>
-      
-      {/* Collection Card */}
-      <View style={styles.collectioncard}>
-        {/* Image inside collection card */}
-        <Image 
-          source={require('../../assets/images/bottles.png')}  // Local image path
-          style={styles.image} 
-          resizeMode="contain"  // Ensures the image fits without distortion
-        />
-        <Text style={styles.collectionText}>20 Bottles Day</Text>
-        <Text style={styles.collection2Text}>Join the 20 Bottles a Day Challenge and make a difference! Collect and properly dispose of at least 20 plastic bottles today while plogging. Track your progress, inspire others, and contribute to a greener planet—one bottle at a time! 🌱💪</Text>
+            <Text style={styles.buttonText}>Start Plogging Session</Text>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
-      <View style={styles.emptyspace}></View>
-      <Text style={styles.startbutton} onPress= {handleStartSession}>Start Session</Text>
-      <View style={styles.emptyspace}></View>
-    </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  emptyspace: {
-    height: 20,
+  container: {
+    flex: 1,
+    padding: 20,
+    paddingTop: 20,
+  },
+  header: {
+    marginTop: 10,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontFamily: 'Poppins-Bold',
+    fontSize: 32,
+    color: '#2C3E50',
+    marginBottom: 8,
+  },
+  headerSubtitle: {
+    fontFamily: 'Poppins-Light',
+    fontSize: 16,
+    color: '#7F8C8D',
+    textAlign: 'center',
   },
   collectioncard: {
-    backgroundColor: '#A1DEBA',
-    width: '90%',
-    padding: 20,
-    marginBottom: 20,
-    borderRadius: 15,
-    textAlign: 'center',
-    shadowColor: 'black',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.8,
-    shadowRadius: 2,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    marginBottom: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
     elevation: 5,
-    alignItems: 'center',  // Centers the content horizontally
+    overflow: 'hidden',
+  },
+  image: {
+    width: '100%',
+    height: 200,
+  },
+  cardContent: {
+    padding: 20,
   },
   collectionText: {
     fontFamily: 'Poppins-Bold',
-    fontWeight: 'bold',
-    fontSize: 18,
-    color: '#333',
-    marginTop: 10,  // Space between the image and text
-    textAlign: 'left',  // Aligns the text to the left
-    alignSelf: 'flex-start',  // Align the text to the left
+    fontSize: 22,
+    color: '#2C3E50',
+    marginBottom: 12,
   },
   collection2Text: {
-    fontFamily: 'Poppins-Bold',
+    fontFamily: 'OpenSans-Regular',
     fontSize: 15,
-    color: '#333',
-    textAlign: 'left',
-    marginTop: 10,  // Space between the image and text
-    alignSelf: 'flex-start',  // Align the text to the left
+    color: '#34495E',
+    lineHeight: 22,
   },
-  image: {
-    width: '100%',  // Ensures the image takes up the full width of the container
-    height: 200,  // Height of the rectangle (you can adjust this)
-    borderRadius: 10,  // Optional: Adds rounded corners to the image
+  buttonContainer: {
+    alignItems: 'center',
+    marginTop: 10,
   },
   startbutton: {
-    fontFamily: 'Poppins-Bold',
-    borderRadius: 20,
-    padding: 10,
     backgroundColor: '#34C759',
-    color: 'white',
-    width: '80%',
-    textAlign: 'center',
-    fontSize: 18,
-    shadowColor: 'black',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.8,
-    shadowRadius: 2,
-    elevation: 5,
-    alignSelf: 'center', 
-  },
-  smallbutton: {
-    fontFamily: 'Poppins-Bold',
-    borderRadius: 20,
-    padding: 10,
-    backgroundColor: '#34C759',
-    color: 'white',
-    width: '50%',
-    textAlign: 'center',
-    fontSize: 12,
-    shadowColor: 'black',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.8,
-    shadowRadius: 2,
-    elevation: 5,
-    alignSelf: 'flex-end', 
-  },
-  container: {
-    flex: 1,
-    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 30,
+    width: '100%',
     alignItems: 'center',
-    padding: 20,
+    shadowColor: '#34C759',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  title: {
-    marginTop: -50,
+  buttonText: {
     fontFamily: 'Poppins-Bold',
-    fontSize: 80,
-  },
-  input: {
-    fontFamily: 'Poppins-Light',
-    borderRadius: 15,
-    width: '80%',
-    backgroundColor: '#f5f2f2',
-    height: 50,
-    padding: 5,
-    paddingLeft: 20,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    marginTop: 5,
-    marginBottom: 20,
+    color: '#FFFFFF',
+    fontSize: 18,
   },
   scrollContainer: {
     flex: 1,
+    backgroundColor: '#F8F9FA',
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    flexGrow: 1,
   },
 });

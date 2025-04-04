@@ -1,9 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
-import { Button, StyleSheet, Text, TouchableOpacity, View, Animated, Image, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { Button, StyleSheet, Text, TouchableOpacity, View, Animated, Image, Alert, StatusBar, Platform, Modal } from 'react-native';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import * as MediaLibrary from 'expo-media-library';
 import { API_URL } from '../context/AuthContext';
 import axios from 'axios';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../context/AuthContext';
+import { useRouter } from 'expo-router';
 
 export default function Camera() {
   const [facing, setFacing] = useState<CameraType>('back');
@@ -11,11 +14,14 @@ export default function Camera() {
   const [mediaLibraryPermission, setMediaLibraryPermission] = useState(false);
   const [scale] = useState(new Animated.Value(1));
   const cameraRef = useRef<any>(null);
+  const { onLogout } = useAuth();
+  const router = useRouter();
   
   // New state variables
   const [photo, setPhoto] = useState<any>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [flashMode, setFlashMode] = useState<'on' | 'off'>('off');
 
   // Request Media Library permission
   useEffect(() => {
@@ -31,6 +37,21 @@ export default function Camera() {
     requestMediaPermission();
   }, []);
 
+  const handleLogout = async () => {
+    try {
+      if (onLogout) {
+        await onLogout();
+        router.replace('/');
+      } else {
+        console.error('Logout function is not available');
+        Alert.alert('Error', 'Logout functionality is not available.');
+      }
+    } catch (error) {
+      console.error('Logout failed:', error);
+      Alert.alert('Error', 'Failed to logout. Please try again.');
+    }
+  };
+
   if (!permission) {
     return <View />;
   }
@@ -43,6 +64,12 @@ export default function Camera() {
       </View>
     );
   }
+
+  const toggleFlash = () => {
+    setFlashMode(current => 
+      current === 'off' ? 'on' : 'off'
+    );
+  };
 
   const takePhoto = async () => {
     if (cameraRef.current) {
@@ -87,34 +114,50 @@ export default function Camera() {
       if (!photo || !photo.base64) {
         throw new Error("Photo data is missing");
       }
-      const response = await axios.post(`${API_URL}/store-litter`, { image: photo.base64})
-      const data = await response.data;
-      console.log(data);
+      // Make API call to detect litter
+      const response = await axios.post(`${API_URL}/store-litter`, { image: photo.base64 });
+      const data = response.data;
+      console.log("API response:", data);
       
-      
-      // Show result in a popup notification
-      // result structure: {"points":10, "litter":{"can":1, "bottle":2}}
-      // iterate through litter object to display each item
-      // finally display the total points
-      if (data) {
-        for (const [key, value] of Object.entries(data.litter)) {
+      // Check if the result contains the expected structure
+      if (data && data.points && data.litter) {
+        // Check for specific litter types and their counts
+        const litterCounts: Record<string, number> = data.litter;
+        let challengeCompleted = false;
+        let challengeMessage = "";
+
+        // Example: Check if the challenge was to collect 2 bottles
+        if (litterCounts.bottle && litterCounts.bottle >= 2) {
+          challengeCompleted = true;
+          challengeMessage = "🎉 Challenge Completed! You've collected 2 bottles today!";
+        }
+
+        // Display individual litter counts
+        for (const [litterType, count] of Object.entries(litterCounts)) {
           Alert.alert(
-            "Result",
-            `Found ${value} ${key}(s)`,
+            "Litter Found",
+            `Found ${count} ${litterType}${count > 1 ? 's' : ''}`,
             [{ text: "OK" }]
           );
         }
+
+        // Display points and challenge status
         Alert.alert(
-          "Final Points",
-          data.result,
-          [{ text: `${data.points}` }]
+          challengeCompleted ? "Challenge Completed!" : "Points Earned",
+          challengeCompleted 
+            ? `${challengeMessage}\nTotal Points: ${data.points}`
+            : `Total Points: ${data.points}`,
+          [{ text: "OK" }]
         );
+
         // Hide confirmation screen
         setShowConfirmation(false);
         setPhoto(null);
+      } else {
+        throw new Error("Invalid response format from server");
       }
     } catch (error) {
-      console.error("Error sending photo:", error);
+      console.error("Error processing image:", error);
       Alert.alert(
         "Error",
         "Failed to process the image. Please try again.",
@@ -136,165 +179,267 @@ export default function Camera() {
   };
 
   return (
-    <Animated.View
-      style={[styles.container, { transform: [{ scale }] }]}
-    >
-      {!showConfirmation ? (
-        // Camera view
-        <>
-          <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
-                <Text style={styles.text}>Flip Camera</Text>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      <Animated.View
+        style={[styles.cameraContainer, { transform: [{ scale }] }]}
+      >
+        <CameraView 
+          style={styles.camera} 
+          facing={facing} 
+          ref={cameraRef}
+        >
+          <View style={styles.overlay}>
+            {/* Top Controls */}
+            <View style={styles.topControls}>
+              <TouchableOpacity 
+                style={styles.iconButton} 
+                onPress={toggleCameraFacing}
+              >
+                <Ionicons name="camera-reverse" size={28} color="white" />
+              </TouchableOpacity>
+              
+              <View style={styles.rightControls}>
+                <TouchableOpacity 
+                  style={styles.iconButton} 
+                  onPress={toggleFlash}
+                >
+                  <Ionicons 
+                    name={flashMode === 'on' ? "flash" : "flash-outline"} 
+                    size={28} 
+                    color="white" 
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Bottom Controls */}
+            <View style={styles.bottomControls}>
+              <TouchableOpacity 
+                style={styles.captureButton} 
+                onPress={takePhoto} 
+                activeOpacity={0.7}
+              >
+                <View style={styles.captureButtonInner}>
+                  <View style={styles.captureButtonCenter} />
+                </View>
               </TouchableOpacity>
             </View>
-          </CameraView>
+          </View>
+        </CameraView>
+      </Animated.View>
 
-          <TouchableOpacity style={styles.captureButton} onPress={takePhoto} activeOpacity={0.7}>
-            <View style={styles.innerCircle}></View>
-          </TouchableOpacity>
-        </>
-      ) : (
-        // Confirmation view
-        <View style={styles.confirmationContainer}>
-          <Text style={styles.confirmationTitle}>Use this photo?</Text>
-          
-          {photo && (
-            <Image
-              source={{ uri: photo.uri }}
-              style={styles.previewImage}
-            />
-          )}
-          
-          <View style={styles.confirmationButtons}>
-            <TouchableOpacity 
-              style={[styles.confirmButton, styles.cancelButton]} 
-              onPress={handleCancel}
-              disabled={isLoading}
-            >
-              <Text style={styles.confirmButtonText}>Retake</Text>
-            </TouchableOpacity>
+      {/* Confirmation Modal */}
+      <Modal
+        visible={showConfirmation}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={handleCancel}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Review Photo</Text>
+              <Text style={styles.modalSubtitle}>Is this photo clear enough?</Text>
+            </View>
             
-            <TouchableOpacity 
-              style={[styles.confirmButton, styles.acceptButton]} 
-              onPress={handleConfirm}
-              disabled={isLoading}
-            >
-              <Text style={styles.confirmButtonText}>
-                {isLoading ? "Processing..." : "Use Photo"}
-              </Text>
-            </TouchableOpacity>
+            {photo && (
+              <View style={styles.previewContainer}>
+                <Image
+                  source={{ uri: photo.uri }}
+                  style={styles.previewImage}
+                />
+              </View>
+            )}
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton]} 
+                onPress={handleCancel}
+                disabled={isLoading}
+              >
+                <Ionicons name="close" size={24} color="#FF3B30" />
+                <Text style={[styles.modalButtonText, styles.cancelButtonText]}>Retake</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.acceptButton]} 
+                onPress={handleConfirm}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <View style={styles.loadingContainer}>
+                    <Text style={styles.modalButtonText}>Processing...</Text>
+                  </View>
+                ) : (
+                  <>
+                    <Ionicons name="checkmark" size={24} color="white" />
+                    <Text style={styles.modalButtonText}>Use Photo</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      )}
-    </Animated.View>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#000',
+  },
+  cameraContainer: {
+    flex: 1,
+  },
+  camera: {
+    flex: 1,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  topControls: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 20,
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+  },
+  rightControls: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.3)',
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bottomControls: {
+    position: 'absolute',
+    bottom: 100,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  sideControls: {
+    position: 'absolute',
+    right: 20,
+    top: '50%',
+    transform: [{ translateY: -50 }],
+  },
+  captureButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  captureButtonInner: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  captureButtonCenter: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#000',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 20,
+    width: '80%',
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: 'black',
+    textAlign: 'center',
+    fontFamily: 'Poppins-Bold',
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    color: 'black',
+    textAlign: 'center',
+    marginTop: 8,
+    fontFamily: 'Poppins-Light',
+  },
+  previewContainer: {
+    width: '100%',
+    height: 350,
+    borderRadius: 15,
+    overflow: 'hidden',
+    marginBottom: 20,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+  },
+  modalButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 15,
+    marginHorizontal: 8,
+  },
+  cancelButton: {
+    backgroundColor: 'rgba(255,59,48,0.1)',
+  },
+  acceptButton: {
+    backgroundColor: '#34C759',
+  },
+  modalButtonText: {
+    color: 'black',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+    fontFamily: 'Poppins-Bold',
+  },
+  cancelButtonText: {
+    color: '#FF3B30',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
   message: {
     textAlign: 'center',
-    paddingBottom: 10,
-  },
-  camera: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
-  buttonContainer: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
-    backgroundColor: 'transparent',
-    flexDirection: 'row',
-  },
-  button: {
-    alignSelf: 'flex-start',
-    alignItems: 'center',
-  },
-  text: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  captureButton: {
-    position: 'absolute',
-    bottom: 50,
-    left: '50%',
-    transform: [{ translateX: -35 }],
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 5,
-  },
-  innerCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#d9d9d9',
-  },
-  // New styles for confirmation screen
-  confirmationContainer: {
-    flex: 1,
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#000',
     padding: 20,
-  },
-  confirmationTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 20,
-  },
-  previewImage: {
-    width: '100%',
-    height: '70%',
-    borderRadius: 10,
-    marginBottom: 20,
-    resizeMode: 'contain',
-  },
-  confirmationButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    paddingHorizontal: 20,
-  },
-  confirmButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    minWidth: 130,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
-  cancelButton: {
-    backgroundColor: '#ff3b30',
-  },
-  acceptButton: {
-    backgroundColor: '#34c759',
-  },
-  confirmButtonText: {
     color: 'white',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'Poppins-Regular',
   },
 });

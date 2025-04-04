@@ -1,8 +1,10 @@
-
+import React from 'react';
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from '@expo/vector-icons';
+import { View, StyleSheet, Platform, SafeAreaView, TouchableOpacity } from 'react-native';
+import { BlurView } from 'expo-blur';
 
 import Home from './screens/Home'; 
 import Login from './screens/Login'; 
@@ -30,29 +32,78 @@ const MainTabs = () => {
     const { onLogout } = useAuth();
     return (
         <Tab.Navigator
-            screenOptions={{
+            screenOptions={({ navigation }) => ({
                 headerTitleAlign: 'center',
                 headerShadowVisible: false,
-                tabBarActiveTintColor: '#37eb34',
-                tabBarInactiveTintColor: 'gray',
-                // add logout button to right side of header,
+                tabBarActiveTintColor: '#34C759',
+                tabBarInactiveTintColor: '#8E8E93',
+                tabBarStyle: {
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    elevation: 0,
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    borderTopWidth: 0,
+                    height: Platform.OS === 'ios' ? 80 : 25,
+                    paddingBottom: Platform.OS === 'ios' ? 20 : 0,
+                },
+                tabBarItemStyle: {
+                    paddingTop: 15,
+                },
+                tabBarLabelStyle: {
+                    fontFamily: 'Poppins-Medium',
+                    fontSize: 10,
+                    marginTop: 0,
+                },
+                headerStyle: {
+                    backgroundColor: '#FFFFFF',
+                    height: Platform.OS === 'ios' ? 50 : 40,
+                    paddingTop: 0,
+                    marginTop: Platform.OS === 'ios' ? -20 : -10,
+                    borderBottomWidth: 1,
+                    borderBottomColor: '#E5E5EA',
+                },
+                headerTitleStyle: {
+                    fontFamily: 'Poppins-Bold',
+                    fontSize: 18,
+                    color: '#000000',
+                    marginTop: -35,
+                },
+                // Add logout button to header
                 headerRight: () => (
-                    <Button
+                    <TouchableOpacity 
                         onPress={onLogout}
-                        title="Logout"
-                        color="#37eb34"
-                    />
-                )
-            }}
+                        style={{ 
+                            marginRight: 15, 
+                            marginTop: -35,
+                            padding: 5,
+                        }}
+                    >
+                        <Ionicons name="log-out-outline" size={22} color="#FF3B30" />
+                    </TouchableOpacity>
+                ),
+                // Wrap each screen in a SafeAreaView with bottom padding
+                tabBarBackground: () => (
+                    <View style={styles.tabBarBackground}>
+                        <View style={styles.bottomSpacing} />
+                    </View>
+                ),
+            })}
         >
             <Tab.Screen
                 name="Home"
                 component={Home}
                 options={{
-                    title: 'Home',
-                    tabBarLabel: () => null,
-                    tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="home-outline" size={size} color={color} />
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <View style={styles.iconContainer}>
+                            <Ionicons 
+                                name={focused ? "home" : "home-outline"} 
+                                size={size} 
+                                color={color} 
+                            />
+                            {focused && <View style={styles.activeIndicator} />}
+                        </View>
                     ),
                 }}
             />
@@ -60,10 +111,15 @@ const MainTabs = () => {
                 name="Metrics"
                 component={Metrics}
                 options={{
-                    title: 'Metrics',
-                    tabBarLabel: () => null,
-                    tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="analytics" size={size} color={color} />
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <View style={styles.iconContainer}>
+                            <Ionicons 
+                                name={focused ? "analytics" : "analytics-outline"} 
+                                size={size} 
+                                color={color} 
+                            />
+                            {focused && <View style={styles.activeIndicator} />}
+                        </View>
                     ),
                 }}
             />
@@ -71,11 +127,14 @@ const MainTabs = () => {
                 name="Camera"
                 component={Camera}
                 options={{
-                    title: 'Camera',
-                    tabBarLabel: () => null,
-                    tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="camera-outline" size={size} color={color} />
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <View style={[styles.iconContainer, styles.cameraContainer]}>
+                            <View style={styles.cameraButton}>
+                                <Ionicons name="camera" size={size} color="#FFFFFF" />
+                            </View>
+                        </View>
                     ),
+                    tabBarLabel: () => null,
                 }}
             />
             <Tab.Screen
@@ -83,9 +142,15 @@ const MainTabs = () => {
                 component={Social}
                 options={{
                     title: 'Leaderboard',
-                    tabBarLabel: () => null,
-                    tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="clipboard-outline" size={size} color={color} />
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <View style={styles.iconContainer}>
+                            <Ionicons 
+                                name={focused ? "trophy" : "trophy-outline"} 
+                                size={size} 
+                                color={color} 
+                            />
+                            {focused && <View style={styles.activeIndicator} />}
+                        </View>
                     ),
                 }}
             />
@@ -93,16 +158,66 @@ const MainTabs = () => {
                 name="Profile"
                 component={Profile}
                 options={{
-                    title: 'Profile',
-                    tabBarLabel: () => null,
-                    tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="person-outline" size={size} color={color} />
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <View style={styles.iconContainer}>
+                            <Ionicons 
+                                name={focused ? "person" : "person-outline"} 
+                                size={size} 
+                                color={color} 
+                            />
+                            {focused && <View style={styles.activeIndicator} />}
+                        </View>
                     ),
                 }}
             />
         </Tab.Navigator>
     );
 };
+
+const styles = StyleSheet.create({
+    iconContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 50,
+        height: 50,
+    },
+    activeIndicator: {
+        position: 'absolute',
+        bottom: -8,
+        width: 5,
+        height: 5,
+        borderRadius: 2.5,
+        backgroundColor: '#34C759',
+    },
+    cameraContainer: {
+        marginTop: -20,
+    },
+    cameraButton: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: '#34C759',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#34C759',
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.3,
+        shadowRadius: 4.65,
+        elevation: 8,
+        borderWidth: 3,
+        borderColor: '#FFFFFF',
+    },
+    tabBarBackground: {
+        flex: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    },
+    bottomSpacing: {
+        height: Platform.OS === 'ios' ? 110 : 45,
+    },
+});
 
 // Layout: Handles Authentication & Main App Navigation
 export const Layout = () => {

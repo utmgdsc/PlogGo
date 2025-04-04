@@ -5,6 +5,7 @@ import * as Location from "expo-location";
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 
+
 export default function Tracking() {
   const [location, setLocation] = useState(null);
   const [isTracking, setIsTracking] = useState(false);
