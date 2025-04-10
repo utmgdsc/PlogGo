@@ -4,6 +4,7 @@ import base64
 import onnxruntime as ort
 from PIL import Image
 from io import BytesIO
+from collections import Counter
 
 def base64_to_image(base64_string):
         """
@@ -130,13 +131,6 @@ def rescale_back(results,img_w,img_h):
     # print(np.array(keep).shape)
     return keep, keep_confidences
 
-# load classes labels for pretrained model
-def load_labels(path):
-    with open(path) as file: # extract number of classes from text file
-        content = file.read()
-        classes = content.split('\n')
-    return classes
-
 def filter_Detections(results, thresh = 0.1):
     # if model is trained on 1 class only
     if len(results[0]) == 5:
@@ -198,11 +192,36 @@ def detect_litter_from_base64(base64_string, model_path, labels_path):
     results = filter_Detections(results)
 
     # rescale the images back to its original form
-    # rescaled_results, confidences = rescale_back(results, img_width, img_height)
+    rescaled_results, confidences = rescale_back(results, img_width, img_height)
     
-    # Load class labels
-    classes = load_labels(labels_path) 
+    # load class labels
+    classes = ['Aluminium foil', 
+               'Bottle cap', 
+               'Bottle', 
+               'Broken glass', 
+               'Can', 
+               'Carton', 
+               'Cigarette ', 
+               'Cup', 
+               'Lid', 
+               'Other litter', 
+               'Other plastic', 
+               'Paper', 
+               'Plastic bag - wrapper', 
+               'Plastic container', 
+               'Pop tab',
+                'Straw ', 
+                'Styrofoam piece', 
+                'Unlabeled litter'] 
 
-    predictions = [classes[int(result[-2])] for result in results]
+    # map class ids to class names
+    predictions = [classes[int(result[-1])] for result in rescaled_results]
+    
+    freq_predictions = Counter(predictions)
+
+    # merge bottle cap and bottle counts
+    if 'Bottle' in freq_predictions:
+        freq_predictions['Bottle'] += freq_predictions.get('Bottle cap', 0)
+        freq_predictions.pop('Bottle cap', None)
 
     return predictions
