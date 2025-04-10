@@ -1,14 +1,17 @@
-import { Text, View, StyleSheet, TouchableOpacity, TextInput } from "react-native";
+import { Text, View, StyleSheet, TouchableOpacity, TextInput, ScrollView } from "react-native";
 import axios from "axios";
 import { useEffect, useState } from "react";
-import { API_URL } from "../context/AuthContext";
+import { API_URL, API_ROUTES } from '../config/env';
+import { useAuth } from "../context/AuthContext";
 import { Image } from 'expo-image';
 import { useFonts } from "expo-font";
 import { SplashScreen } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
+import { Ionicons } from '@expo/vector-icons';
 
 export default function Profile() {
+  const { onLogout } = useAuth();
 
   // uncomment when backend is ready
   interface UserProfile {
@@ -38,7 +41,7 @@ export default function Profile() {
   const fetchData = async () => {
     try {
       // name, pfp, description, streak
-      const response = await axios.get(`${API_URL}/profile`);
+      const response = await axios.get(`${API_URL}${API_ROUTES.PROFILE}`);
       console.log("fetch pfp", response.data.name);
       setData(response.data);
       setEditedData({ name: response.data.name, description: response.data.description, pfp: response.data.pfp });
@@ -70,7 +73,7 @@ export default function Profile() {
         ...(isBase64 && { pfp: editedData.pfp })
       };
   
-      await axios.put(`${API_URL}/user`, payload);
+      await axios.put(`${API_URL}${API_ROUTES.USER}`, payload);
       setData({ ...data, ...editedData });
       setIsEditing(false);
     } catch (error) {
@@ -119,66 +122,86 @@ export default function Profile() {
 
 
   return (
-    <View style={styles.container}>
-      {/* Profile Section */}
-      <View style={styles.profile}>
-      <TouchableOpacity onPress={isEditing ? handlePickImage : () => setIsEditing(true)}>
-        <Image style={styles.pfp} source={{ uri: editedData.pfp }} contentFit="cover" />
-      </TouchableOpacity>
-        {isEditing ? (
-          <TextInput style={styles.input} value={editedData.name} onChangeText={(text) => setEditedData({ ...editedData, name: text })} />
-        ) : (
-          <Text style={styles.name}>{data.name}</Text>
-        )}
-        {isEditing ? (
-          <TextInput style={styles.input} value={editedData.description} onChangeText={(text) => setEditedData({ ...editedData, description: text })} />
-        ) : (
-          <Text style={styles.description}>{data.description}</Text>
-        )}
-        {isEditing ? (
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.saveButtonText}>Save</Text>
+    <ScrollView 
+      contentContainerStyle={styles.scrollContent}
+      style={styles.scrollContainer}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.container}>
+        {/* Profile Section */}
+        <View style={styles.profile}>
+          <TouchableOpacity onPress={isEditing ? handlePickImage : () => setIsEditing(true)}>
+            <Image style={styles.pfp} source={{ uri: editedData.pfp }} contentFit="cover" />
           </TouchableOpacity>
-        ) : (
-          <TouchableOpacity style={styles.editProfile} onPress={() => setIsEditing(true)}>
-            <Text style={styles.editText}>Edit</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+          {isEditing ? (
+            <TextInput style={styles.input} value={editedData.name} onChangeText={(text) => setEditedData({ ...editedData, name: text })} />
+          ) : (
+            <Text style={styles.name}>{data.name}</Text>
+          )}
+          {isEditing ? (
+            <TextInput style={styles.input} value={editedData.description} onChangeText={(text) => setEditedData({ ...editedData, description: text })} />
+          ) : (
+            <Text style={styles.description}>{data.description}</Text>
+          )}
+          {isEditing ? (
+            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+              <Text style={styles.saveButtonText}>Save</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.editProfile} onPress={() => setIsEditing(true)}>
+              <Text style={styles.editText}>Edit</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
-       {/* Badges Section */}
-       <View style={styles.badges}>
-        <Text style={styles.badgesTitle}>Badges</Text>
-        <View style={styles.badgeContainer}>
-          {data.badges ? data.badges.map((badge, index) => (
-            <View key={index} style={styles.badgeItem}>
-              <View style={styles.badgeCircle}>
-                <Text style={styles.badgeIcon}>{badge.icon}</Text>
+         {/* Badges Section */}
+         <View style={styles.badges}>
+          <Text style={styles.badgesTitle}>Badges</Text>
+          <View style={styles.badgeContainer}>
+            {data.badges ? data.badges.map((badge, index) => (
+              <View key={index} style={styles.badgeItem}>
+                <View style={styles.badgeCircle}>
+                  <Text style={styles.badgeIcon}>{badge.icon}</Text>
+                </View>
+                <Text style={styles.badgeText}>{badge.title}</Text>
               </View>
-              <Text style={styles.badgeText}>{badge.title}</Text>
-            </View>
-          )) : null}
+            )) : null}
+          </View>
         </View>
-      </View>
 
-      {/* Streak Section */}
-      <View style={styles.streak}>
-        <View style={styles.streakTextContainer}>
-          <Text style={styles.streakCount}>{data.streak}</Text>
-          <Text style={styles.streakDays}>  Streak days</Text>
+        {/* Streak Section */}
+        <View style={styles.streak}>
+          <View style={styles.streakTextContainer}>
+            <Text style={styles.streakCount}>{data.streak}</Text>
+            <Text style={styles.streakDays}>  Streak days</Text>
+          </View>
+          <Text style={styles.streakEmoji}>🔥</Text>
         </View>
-        <Text style={styles.streakEmoji}>🔥</Text>
+        
+        {/* Logout Button */}
+        <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
+          <Ionicons name="log-out-outline" size={20} color="#fff" />
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  scrollContainer: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingVertical: 20,
+    paddingBottom: 40,
+  },
   container: {
     flex: 1,
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 40,
     backgroundColor: '#ffffff',
   },
   profile: {
@@ -320,5 +343,31 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 14,
     fontFamily: "Poppins-Bold",
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF3B30',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    width: '80%',
+    marginTop: 20,
+    marginBottom: 20,
+    shadowColor: '#FF3B30',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
+  },
+  logoutText: {
+    color: '#FFFFFF',
+    fontFamily: 'Poppins-Bold',
+    fontSize: 16,
+    marginLeft: 10,
   },
 });

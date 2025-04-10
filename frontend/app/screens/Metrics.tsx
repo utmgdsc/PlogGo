@@ -5,7 +5,7 @@ import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { AnimatedCircularProgress } from 'react-native-circular-progress';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
-import { API_URL } from '../context/AuthContext';
+import { API_URL, API_ROUTES } from '../config/env';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -44,8 +44,8 @@ export default function Metrics() {
 
   const fetchData = async () => {
     try {
-      console.log(`${API_URL}/metrics`);
-      const response = await axios.get(`${API_URL}/metrics`);
+      console.log(`${API_URL}${API_ROUTES.METRICS}`);
+      const response = await axios.get(`${API_URL}${API_ROUTES.METRICS}`);
       console.log(response.data);
 
       const Steps = response.data.steps;

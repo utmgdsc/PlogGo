@@ -1,9 +1,10 @@
 import React from 'react';
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { TrackingProvider } from "./context/TrackingContext";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from '@expo/vector-icons';
-import { View, StyleSheet, Platform, SafeAreaView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Platform, SafeAreaView, TouchableOpacity, Image } from 'react-native';
 import { BlurView } from 'expo-blur';
 
 import Home from './screens/Home'; 
@@ -14,6 +15,7 @@ import Camera from "./screens/Camera";
 import Social from "./screens/Social";
 import Profile from "./screens/Profile";
 import Tracking from "./screens/Tracking";
+import SessionSummary from "./screens/SessionSummary";
 import { Button } from "react-native";
 
 const Stack = createNativeStackNavigator();
@@ -22,7 +24,9 @@ const Tab = createBottomTabNavigator();
 export default function Index() {
     return (
         <AuthProvider>
+            <TrackingProvider>
                 <Layout />
+            </TrackingProvider>
         </AuthProvider>
     );
 }
@@ -31,10 +35,10 @@ export default function Index() {
 const MainTabs = () => {
     const { onLogout } = useAuth();
     return (
-        <Tab.Navigator
+        <Tab.Navigator 
             screenOptions={({ navigation }) => ({
                 headerTitleAlign: 'center',
-                headerShadowVisible: false,
+                headerShown: false,
                 tabBarActiveTintColor: '#34C759',
                 tabBarInactiveTintColor: '#8E8E93',
                 tabBarStyle: {
@@ -124,13 +128,16 @@ const MainTabs = () => {
                 }}
             />
             <Tab.Screen
-                name="Camera"
-                component={Camera}
+                name="Tracking"
+                component={Tracking}
                 options={{
                     tabBarIcon: ({ color, size, focused }) => (
-                        <View style={[styles.iconContainer, styles.cameraContainer]}>
-                            <View style={styles.cameraButton}>
-                                <Ionicons name="camera" size={size} color="#FFFFFF" />
+                        <View style={[styles.iconContainer, styles.ploggingContainer]}>
+                            <View style={styles.ploggingButton}>
+                                <Image 
+                                    source={require('../assets/images/ecology.png')} 
+                                    style={{ width: 30, height: 30 }}
+                                />
                             </View>
                         </View>
                     ),
@@ -189,10 +196,10 @@ const styles = StyleSheet.create({
         borderRadius: 2.5,
         backgroundColor: '#34C759',
     },
-    cameraContainer: {
+    ploggingContainer: {
         marginTop: -20,
     },
-    cameraButton: {
+    ploggingButton: {
         width: 60,
         height: 60,
         borderRadius: 30,
@@ -234,14 +241,22 @@ export const Layout = () => {
                         headerShown: false, // Hides stack header since tabs already have headers
                     }}
                 />
-                <Stack.Screen
-                    name= "Tracking"
-                    component={Tracking}
+                <Stack.Screen 
+                    name="SessionSummary" 
+                    component={SessionSummary} 
                     options={{
-                        headerShown: true,
-                        title: "Tracking",
+                        headerShown: false,
+                        gestureEnabled: false, // Prevent going back with gestures
+                        presentation: 'modal', // Present as a modal
                     }}
-                    />
+                />
+                <Stack.Screen 
+                    name="Camera" 
+                    component={Camera} 
+                    options={{
+                        headerShown: false,
+                    }}
+                />
                 </>
             ) : (
                 <>

@@ -6,16 +6,26 @@ import { API_URL } from '../context/AuthContext';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { useRouter } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+
+// Define navigation type
+type RootStackParamList = {
+  MainTabs: undefined;
+  Camera: undefined;
+  Tracking: undefined;
+};
+
+type CameraScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Camera'>;
 
 export default function Camera() {
+  const navigation = useNavigation<CameraScreenNavigationProp>();
   const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
   const [mediaLibraryPermission, setMediaLibraryPermission] = useState(false);
   const [scale] = useState(new Animated.Value(1));
   const cameraRef = useRef<any>(null);
   const { onLogout } = useAuth();
-  const router = useRouter();
   
   // New state variables
   const [photo, setPhoto] = useState<any>(null);
@@ -41,7 +51,7 @@ export default function Camera() {
     try {
       if (onLogout) {
         await onLogout();
-        router.replace('/');
+        navigation.navigate('MainTabs');
       } else {
         console.error('Logout function is not available');
         Alert.alert('Error', 'Logout functionality is not available.');
@@ -121,9 +131,9 @@ export default function Camera() {
       console.log("API response:", data);
       
       // Check if the result contains the expected structure
-      if (data && data.points && data.litter) {
+      if (data && data.points && data.litters) {
         // Check for specific litter types and their counts
-        const litterCounts: Record<string, number> = data.litter;
+        const litterCounts: Record<string, number> = data.litters;
         let challengeCompleted = false;
         let challengeMessage = "";
 
@@ -179,6 +189,10 @@ export default function Camera() {
     setFacing((prev) => (prev === 'back' ? 'front' : 'back'));
   };
 
+  const goBackToTracking = () => {
+    navigation.goBack(); // Navigate back to Tracking screen
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
@@ -193,12 +207,23 @@ export default function Camera() {
           <View style={styles.overlay}>
             {/* Top Controls */}
             <View style={styles.topControls}>
-              <TouchableOpacity 
-                style={styles.iconButton} 
-                onPress={toggleCameraFacing}
-              >
-                <Ionicons name="camera-reverse" size={28} color="white" />
-              </TouchableOpacity>
+              <View style={styles.leftControls}>
+                <TouchableOpacity 
+                  style={styles.iconButton} 
+                  onPress={goBackToTracking}
+                >
+                  <Ionicons name="arrow-back" size={28} color="white" />
+                </TouchableOpacity>
+              </View>
+              
+              <View style={styles.middleControls}>
+                <TouchableOpacity 
+                  style={styles.iconButton} 
+                  onPress={toggleCameraFacing}
+                >
+                  <Ionicons name="camera-reverse" size={28} color="white" />
+                </TouchableOpacity>
+              </View>
               
               <View style={styles.rightControls}>
                 <TouchableOpacity 
@@ -308,9 +333,14 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: Platform.OS === 'ios' ? 50 : 20,
   },
+  leftControls: {
+    flexDirection: 'row',
+  },
+  middleControls: {
+    flexDirection: 'row',
+  },
   rightControls: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
   },
   iconButton: {
     width: 44,

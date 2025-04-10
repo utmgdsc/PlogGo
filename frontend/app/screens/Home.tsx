@@ -43,25 +43,9 @@ export default function Home() {
   if (!loaded) {
     return null; // Optionally return a loading state until the fonts are loaded
   }
-  const handleStartSession = async () => {
-    Animated.sequence([
-      Animated.timing(scaleAnim, {
-        toValue: 0.95,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: 1,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      navigation.navigate("Tracking");
-    });
-  }
 
-  const handleChallengePress = () => {
-    navigation.navigate("Camera");
+  const handleTrackingPress = () => {
+    navigation.navigate("Tracking");
   }
 
   return (
@@ -78,7 +62,7 @@ export default function Home() {
 
         <TouchableOpacity 
           style={styles.collectioncard}
-          onPress={handleChallengePress}
+          onPress={handleTrackingPress}
           activeOpacity={0.9}
         >
           <Image 
@@ -93,16 +77,6 @@ export default function Home() {
             </Text>
           </View>
         </TouchableOpacity>
-
-        <Animated.View style={[styles.buttonContainer, { transform: [{ scale: scaleAnim }] }]}>
-          <TouchableOpacity 
-            style={styles.startbutton}
-            onPress={handleStartSession}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.buttonText}>Start Plogging Session</Text>
-          </TouchableOpacity>
-        </Animated.View>
       </View>
     </ScrollView>
   );
@@ -160,28 +134,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#34495E',
     lineHeight: 22,
-  },
-  buttonContainer: {
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  startbutton: {
-    backgroundColor: '#34C759',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 30,
-    width: '100%',
-    alignItems: 'center',
-    shadowColor: '#34C759',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  buttonText: {
-    fontFamily: 'Poppins-Bold',
-    color: '#FFFFFF',
-    fontSize: 18,
   },
   scrollContainer: {
     flex: 1,
