@@ -15,7 +15,8 @@ export const API_ROUTES = {
   SESSIONS: '/api/sessions',
   SESSIONS_HISTORY: '/api/sessions-history',
   SESSIONS_LATEST: '/api/sessions-history/latest',
-  DAILY_CHALLENGE: '/api/daily-challenge'
+  DAILY_CHALLENGE: '/api/daily-challenge',
+  LITTER_CLASSIFICATION: '/api/classify-litter'
 };
 
 // WebSocket URL - now using the same server as the HTTP API

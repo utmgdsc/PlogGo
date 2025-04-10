@@ -40,6 +40,10 @@ interface SessionData {
   routes: Array<{ latitude: number; longitude: number; timestamp: string }>;
   distancesTravelled: number;
   steps: number;
+  points?: number;
+  litterCollected?: Record<string, number>;
+  litterDetails?: Record<string, number>;
+  totalLitter?: number;
 }
 
 const getEncouragementMessage = (distance: number, steps: number) => {
@@ -93,7 +97,7 @@ export default function SessionSummary() {
         setLoading(true);
         setError(null);
         
-        const token = await getToken();
+        const token = await getToken?.();
         if (!token) {
           setError('Authentication token not available');
           setLoading(false);
@@ -285,6 +289,41 @@ export default function SessionSummary() {
         {/* Environmental Impact */}
         <View style={styles.impactCard}>
           <Text style={styles.sectionTitle}>Environmental Impact</Text>
+          
+          {/* Litter Collection Details */}
+          {sessionData.litterDetails && Object.keys(sessionData.litterDetails).length > 0 ? (
+            <View style={styles.litterSection}>
+              <Text style={styles.litterTitle}>Litter Collected</Text>
+              <Text style={styles.litterTotal}>
+                Total Items: {sessionData.totalLitter || 0}
+              </Text>
+              
+              <View style={styles.litterItems}>
+                {Object.entries(sessionData.litterDetails).map(([type, count], index) => (
+                  <View key={index} style={styles.litterItem}>
+                    <Ionicons name="trash-outline" size={18} color="#34C759" />
+                    <Text style={styles.litterItemText}>
+                      {count} {type}{Number(count) !== 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+              
+              {sessionData.points ? (
+                <Text style={styles.litterPoints}>
+                  Points Earned: {sessionData.points}
+                </Text>
+              ) : null}
+            </View>
+          ) : (
+            <View style={styles.emptyLitterSection}>
+              <Ionicons name="trash-outline" size={28} color="#BBBBBB" />
+              <Text style={styles.emptyLitterText}>
+                No litter was collected during this session
+              </Text>
+            </View>
+          )}
+          
           <View style={styles.impactContent}>
             <View style={styles.impactItem}>
               <Ionicons name="leaf-outline" size={30} color="#34C759" />
@@ -505,5 +544,57 @@ const styles = StyleSheet.create({
   },
   footerSpace: {
     height: 20,
+  },
+  litterSection: {
+    marginBottom: 16,
+  },
+  litterTitle: {
+    fontFamily: 'Poppins-Bold',
+    fontSize: 18,
+    color: '#000000',
+    marginBottom: 8,
+  },
+  litterTotal: {
+    fontFamily: 'Poppins-Bold',
+    fontSize: 16,
+    color: '#000000',
+  },
+  litterItems: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 12,
+  },
+  litterItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
+    marginBottom: 8,
+    backgroundColor: '#F2F2F7',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  litterItemText: {
+    fontFamily: 'Poppins-Light',
+    fontSize: 14,
+    color: '#333333',
+    marginLeft: 4,
+  },
+  litterPoints: {
+    fontFamily: 'Poppins-Bold',
+    fontSize: 16,
+    color: '#000000',
+    marginTop: 8,
+  },
+  emptyLitterSection: {
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  emptyLitterText: {
+    fontFamily: 'Poppins-Light',
+    fontSize: 14,
+    color: '#8E8E93',
   },
 }); 

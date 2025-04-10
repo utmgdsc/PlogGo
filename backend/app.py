@@ -15,6 +15,7 @@ from models.detect import detect_litter_from_base64
 from utils.ps_helper import load_litter_points
 from collections import Counter
 import json
+import uuid
 
 # initalize Flask app
 api = Blueprint('api', __name__, url_prefix='/api')
@@ -61,15 +62,15 @@ def validate_jwt(token):
         return None, "Invalid token"
  
 def get_current_user():
-    email = get_jwt_identity()
-    if not email:
+    user_id = get_jwt_identity()
+    if not user_id:
         return None
     jid = get_jwt()['jti']
 
     print("JID:", jid)
     if db.token_blacklist.find_one({'jti': jid}) is not None and db.token_blacklist.find_one({'jti': jid}) == jid:
         return None
-    return db.user.find_one({'email': email})
+    return db.user.find_one({'user_id': user_id})
     
 
 ### all the routes will expect a JSON body ###
@@ -91,14 +92,15 @@ def login():
     print(db)
     user = db.user.find_one({'email': email})
     print(user)
-    if not user :
+    if not user:
         return jsonify(message="Invalid email or password"), 401
     elif user and not check_password_hash(user.get('password', ''), password):
         return jsonify(message="Invalid email or password"), 401
     else:
-        # create JWT token
-        access_token = create_access_token(identity=email)
-        return jsonify(user_id=user.get("user_id"), access_token=access_token), 200
+        # create JWT token - use user_id as identity instead of email
+        user_id = user.get("user_id")
+        access_token = create_access_token(identity=user_id)
+        return jsonify(user_id=user_id, access_token=access_token), 200
 
 # logout route
 @app.route('/logout', methods=['POST'])
@@ -118,17 +120,17 @@ def logout():
 @app.route('/user/sessions', methods=['GET'])
 @jwt_required()
 def get_user_sessions():
-    uid = get_jwt_identity()['user_id']
-    sessions = list(db.session.find({'user_id': uid, 'end_time': None}, {'_id': 0}))
+    user_id = get_jwt_identity()
+    sessions = list(db.session.find({'user_id': user_id, 'end_time': None}, {'_id': 0}))
     return jsonify(sessions=sessions), 200
 
 @app.route('/logout/session/<session_id>', methods=['POST'])
 @jwt_required()
 def logout_specific_session(session_id):
-    uid = get_jwt_identity()['user_id']
+    user_id = get_jwt_identity()
 
     # ensure session belongs to authenticated user
-    session_data = db.session.find_one({'session_id': session_id, 'user_id': uid})
+    session_data = db.session.find_one({'session_id': session_id, 'user_id': user_id})
     if not session_data:
         return jsonify(message="Session not found or authoriszed"), 403
 
@@ -147,7 +149,7 @@ def logout_specific_session(session_id):
 @jwt_required()
 def protected():
     identity = get_jwt_identity()
-    return jsonify({"message": "Access granted", "user_id": identity['user_id']}), 200
+    return jsonify({"message": "Access granted", "user_id": identity}), 200
 
 # registration route
 @api.route('/register', methods=['POST'])
@@ -171,6 +173,9 @@ def register():
     # hash the password
     hashed_password = generate_password_hash(password)
 
+    # generate a unique user_id
+    user_id = str(uuid.uuid4())
+    
     # create the default values
     # save user registered data to database
     db.user.insert_one({
@@ -184,9 +189,7 @@ def register():
         'total_litters': 0,
         'streak': 0,
         'highest_streak': 0,
-        'user_id': str(db.user.count_documents({}) + 1),  # Unique user ID
-        'session_id': str(db.user.count_documents({}) + 1),  # Unique session ID
-        'badges': [],
+        'user_id': user_id,  # Using UUID for user ID
         'email': email,
         'password': hashed_password
     })
@@ -198,7 +201,8 @@ def register():
 @api.route('/user', methods=['PUT'])
 @jwt_required()
 def update_user():
-    user = db.user.find_one({'email': get_jwt_identity()})
+    user_id = get_jwt_identity()
+    user = db.user.find_one({'user_id': user_id})
     if not user:
         return jsonify({"error": "User not found"}), 404
     
@@ -210,7 +214,7 @@ def update_user():
         header, encoded = data["pfp"].split(",", 1)
         image_data = base64.b64decode(encoded)
 
-        key = f"profile_pics/{user.get('email')}.jpg"
+        key = f"profile_pics/{user_id}.jpg"
         s3.put_object(Bucket=bucket_name, Key=key, Body=image_data, ContentType='image/jpeg')
 
         s3_url = f"https://{bucket_name}.s3.{region_name}.amazonaws.com/{key}"
@@ -218,7 +222,7 @@ def update_user():
     if "description" in data:
         update_fields["description"] = data["description"]
     if update_fields:
-        db.user.update_one({'email': get_jwt_identity()}, {"$set": update_fields})
+        db.user.update_one({'user_id': user_id}, {"$set": update_fields})
     
     user.update(update_fields)  
     
@@ -249,7 +253,9 @@ def get_profile():
 @api.route('/badge', methods=['GET'])
 @jwt_required()
 def get_badge():
-    badges_id = db.user.find_one({'email': get_jwt_identity()}).badges
+    user_id = get_jwt_identity()
+    user = db.user.find_one({'user_id': user_id})
+    badges_id = user.get('badges', [])
     badges = []
     for badge_id in badges_id:
         badge = db.badge.find_one({'_id': badge_id})
@@ -269,7 +275,7 @@ def get_leaderboard():
     leaderboard = []
     for user in users:
         leaderboard.append({
-            "email": user['email'],
+            "user_id": user['user_id'],
             metric: user.get(metric, 0),
             "name": user.get('name', '2lazy2setaname')
         })
@@ -280,18 +286,19 @@ def get_leaderboard():
 @api.route('/user/data', methods=['GET'])
 @jwt_required()
 def get_user_data():
-    return jsonify({'message': get_jwt_identity()}), 200
+    return jsonify({'user_id': get_jwt_identity()}), 200
 
 
 @api.route('/metrics', methods=['GET'])
 @jwt_required()
 def get_metrics():
-    user = db.user.find_one({'email': get_jwt_identity()})
+    user_id = get_jwt_identity()
+    user = db.user.find_one({'user_id': user_id})
     print("User:", user)
     return jsonify({'time':user.get("total_time"), 
                     'distance':user.get("total_distance"),
                     'steps':user.get("total_steps"),
-                    'calories':user.get("total_steps")*0.04,
+                    'calories':int(user.get("total_steps")*0.04),
                     'curr_streak':user.get("streak"),
                     'points':user.get("total_points",0),
                     'litter':user.get("total_litters",0)}), 200 
@@ -323,13 +330,14 @@ def store_litter():
 @jwt_required()
 def detect_litter():
     try:
+        user_id = get_jwt_identity()
         data = request.json  # Expect JSON input
         if 'image' not in data:
             return jsonify({'error': 'Missing image field'}), 400
 
         base64_string = data['image']
-        model_path = "/Users/hwey/Desktop/projects/PlogGo/backend/models/best.onnx"  # Change this to your actual model path
-        labels_path = "/Users/hwey/Desktop/projects/PlogGo/backend/models/litter_classes.txt"  # Change to the actual labels path
+        model_path = "./models/best.onnx"  # Change this to your actual model path
+        labels_path = "./models/litter_classes.txt"  # Change to the actual labels path
 
         # Run detection
         detections = detect_litter_from_base64(base64_string, model_path, labels_path)
@@ -361,10 +369,10 @@ def detect_litter():
 
         # calculate the total points
         total_points = sum(point_sys[litter] * count for litter, count in litter_counts.items())
-
+        
         # Update user points in the database   
         db.user.update_one(
-            {'email': get_jwt_identity()},
+            {'user_id': user_id},
             {'$inc': {'total_points': total_points, 'total_litters': sum(litter_counts.values())}}
         )
 
@@ -386,19 +394,21 @@ def detect_litter():
 def store_session_history():
     try:
         # Retrieve data from the request body (JSON)
-        user = db.user.find_one({'email': get_jwt_identity()})
+        user_id = get_jwt_identity()
+        user = db.user.find_one({'user_id': user_id})
         data = request.json
         if not data:
             return jsonify({'error': 'No data received'}), 400
 
         # Validate if required fields are present (adjust based on your requirements)
-        required_fields = ['routes', 'distancesTravelled', 'steps', 'timeStart', 'timeEnd','elapsedTime', 'userid', 'sessionid']
+        required_fields = ['routes', 'distancesTravelled', 'steps', 'timeStart', 'timeEnd','elapsedTime', 'sessionid']
         for field in required_fields:
             if field not in data:
                 return jsonify({'error': f'Missing {field} field'}), 400
 
         # Assuming session data looks like: { "distance": 123.4, "activities": ["running", "cycling"] }
         session_data = {
+            "user_id": user_id,
             "startTime": datetime.fromtimestamp(data['timeStart']//1000, tz=timezone.utc),
             "endTime": datetime.fromtimestamp(data['timeEnd']//1000, tz=timezone.utc),
             "elapsedTime": data['elapsedTime'],
@@ -407,9 +417,15 @@ def store_session_history():
             "steps": data['steps'],
         }
         
-        user.total_steps += data['steps']
-        user.total_distance += data['distancesTravelled']
-        user.total_time += data['elapsedTime']
+        # Update user stats
+        db.user.update_one(
+            {'user_id': user_id},
+            {'$inc': {
+                'total_steps': data['steps'],
+                'total_distance': data['distancesTravelled'],
+                'total_time': data['elapsedTime']
+            }}
+        )
         
         # Check badges
         new_badges = db.badge.find({"steps_required": {"$lte": data['steps']}})
@@ -417,12 +433,10 @@ def store_session_history():
         print("New badges:", badge_ids)
         if badge_ids:
             db.users.update_one(
-                {"_id": data["user_id"]}, 
+                {"user_id": user_id}, 
                 {"$addToSet": {"badges": {"$each": badge_ids}}}  # Add badges without duplicates
             )
             print("Badges awarded!")
-        
-        # user.
         
         # Insert the session data into MongoDB collection
         result = db['plogging_session'].insert_one(session_data)
@@ -438,4 +452,4 @@ app.register_blueprint(api)
 
 if __name__ == '__main__':
    
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5002, debug=True)

@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button, StyleSheet, Text, TouchableOpacity, View, Animated, Image, Alert, StatusBar, Platform, Modal } from 'react-native';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import * as MediaLibrary from 'expo-media-library';
-import { API_URL } from '../context/AuthContext';
+import { API_URL, API_ROUTES } from '../config/env';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useTracking } from '../context/TrackingContext';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 
@@ -25,7 +26,8 @@ export default function Camera() {
   const [mediaLibraryPermission, setMediaLibraryPermission] = useState(false);
   const [scale] = useState(new Animated.Value(1));
   const cameraRef = useRef<any>(null);
-  const { onLogout } = useAuth();
+  const { onLogout, getToken, authState } = useAuth();
+  const { updateMetrics, sessionId } = useTracking();
   
   // New state variables
   const [photo, setPhoto] = useState<any>(null);
@@ -125,53 +127,115 @@ export default function Camera() {
         throw new Error("Photo data is missing");
       }
       
-      // Make API call to detect litter
-      const response = await axios.post(`${API_URL}/store-litter`, { image: photo.base64 });
-      const data = response.data;
-      console.log("API response:", data);
+      // Check if user is authenticated
+      if (!authState?.authenticated) {
+        Alert.alert("Authentication Error", "You need to be logged in to upload photos.");
+        return;
+      }
       
-      // Check if the result contains the expected structure
-      if (data && data.points && data.litters) {
-        // Check for specific litter types and their counts
-        const litterCounts: Record<string, number> = data.litters;
-        let challengeCompleted = false;
-        let challengeMessage = "";
-
-        // Check if the challenge was to collect 2 bottles
-        if (litterCounts.bottle && litterCounts.bottle >= 2) {
-          challengeCompleted = true;
-          challengeMessage = "🎉 Challenge Completed! You've collected 2 bottles today!";
+      // Get authentication token
+      const token = await getToken?.();
+      
+      if (!token) {
+        throw new Error("Authentication token is missing");
+      }
+      
+      // Make API call to detect litter
+      console.log("Making request to:", `${API_URL}${API_ROUTES.LITTER_CLASSIFICATION}`);
+      console.log("Current sessionId:", sessionId);
+      
+      // Include sessionId in the request if available
+      const requestBody = { 
+        image: photo.base64,
+        ...(sessionId ? { sessionId } : {})
+      };
+      
+      const response = await axios.post(
+        `${API_URL}${API_ROUTES.LITTER_CLASSIFICATION}`, 
+        requestBody,
+        { 
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         }
-
-        // Display individual litter counts
-        for (const [litterType, count] of Object.entries(litterCounts)) {
+      );
+      const data = response.data;
+      console.log("API response:", JSON.stringify(data));
+      
+      // Check if we received a response (even if it's empty)
+      if (data) {
+        // Initialize variables with defaults in case fields are missing
+        const litterCounts: Record<string, number> = data.litters || {};
+        const points = data.points || 0;
+        const totalLitterCount = Object.values(litterCounts).reduce((sum, count) => sum + count, 0);
+        
+        if (totalLitterCount > 0) {
+          // Display individual litter counts if any were found
+          for (const [litterType, count] of Object.entries(litterCounts)) {
+            Alert.alert(
+              "Litter Found",
+              `Found ${count} ${litterType}${count > 1 ? 's' : ''}`,
+              [{ text: "OK" }]
+            );
+          }
+          
+          // Check if the challenge was to collect 2 bottles
+          let challengeCompleted = false;
+          let challengeMessage = "";
+          if (litterCounts.bottle && litterCounts.bottle >= 2) {
+            challengeCompleted = true;
+            challengeMessage = "🎉 Challenge Completed! You've collected 2 bottles today!";
+          }
+          
+          // Display points and challenge status
           Alert.alert(
-            "Litter Found",
-            `Found ${count} ${litterType}${count > 1 ? 's' : ''}`,
+            challengeCompleted ? "Challenge Completed!" : "Points Earned",
+            challengeCompleted 
+              ? `${challengeMessage}\nTotal Points: ${points}`
+              : `Total Points: ${points}`,
             [{ text: "OK" }]
           );
+        } else {
+          // No litter found
+          Alert.alert("No Litter Detected", "No litter was detected in this image.", [{ text: "OK" }]);
         }
-
-        // Display points and challenge status
-        Alert.alert(
-          challengeCompleted ? "Challenge Completed!" : "Points Earned",
-          challengeCompleted 
-            ? `${challengeMessage}\nTotal Points: ${data.points}`
-            : `Total Points: ${data.points}`,
-          [{ text: "OK" }]
-        );
-
-        // Hide confirmation screen
-        setShowConfirmation(false);
-        setPhoto(null);
+        
+        // Update metrics in tracking context
+        updateMetrics({
+          litters: totalLitterCount,
+          points: points,
+          litterDetails: litterCounts
+        });
+        
+        // Add a short delay before navigating back to allow context to update
+        setTimeout(() => {
+          // Hide confirmation screen
+          setShowConfirmation(false);
+          setPhoto(null);
+          
+          // Navigate back to tracking screen
+          navigation.goBack();
+        }, 500);
       } else {
-        throw new Error("Invalid response format from server");
+        throw new Error("Invalid response from server");
       }
     } catch (error) {
       console.error("Error processing image:", error);
+      
+      // Enhanced error reporting
+      let errorMessage = "Failed to process the image. Please try again.";
+      if (error instanceof Error) {
+        console.error("Error details:", error.message);
+        if (axios.isAxiosError(error) && error.response) {
+          console.error("Server response:", error.response.data);
+          errorMessage = `Server error: ${error.response.status}. ${error.response.data.message || ''}`;
+        }
+      }
+      
       Alert.alert(
         "Error",
-        "Failed to process the image. Please try again.",
+        errorMessage,
         [{ text: "OK" }]
       );
     } finally {

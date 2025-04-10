@@ -4,6 +4,7 @@ import userRoutes from './user';
 import sessionRoutes from './session';
 import sessionsRoutes from './sessions';
 import miscRoutes from './misc';
+import litterClassificationRoutes from './litterClassification';
 import { authenticateToken } from '../middleware/auth';
 import { prisma } from '../config';
 
@@ -23,6 +24,9 @@ router.use('/sessions-history', sessionsRoutes);
 
 // Misc routes (leaderboard, daily challenge, etc.)
 router.use('/', miscRoutes);
+
+// Litter classification routes
+router.use('/', litterClassificationRoutes);
 
 // Legacy API compatibility routes to match Flask API
 // These duplicate endpoints are directly at the root level

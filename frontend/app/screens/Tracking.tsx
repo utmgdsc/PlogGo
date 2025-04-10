@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Platform } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Platform, Animated } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import haversine from 'haversine';
@@ -39,7 +39,8 @@ export default function Tracking() {
     stopTracking, 
     togglePause, 
     sendLocationUpdate,
-    wsConnected 
+    wsConnected,
+    metrics
   } = useTracking();
   
   const [location, setLocation] = useState<LocationData | null>(null);
@@ -50,6 +51,8 @@ export default function Tracking() {
   const [locationSubscription, setLocationSubscription] = useState<Location.LocationSubscription | null>(null);
   const [totalSteps, setTotalSteps] = useState<number>(0);
   const [totalDistance, setTotalDistance] = useState<number>(0);
+  const [showDetailedStats, setShowDetailedStats] = useState<boolean>(false);
+  const detailedStatsHeight = useRef(new Animated.Value(0)).current;
   const [mapRegion, setMapRegion] = useState({
     latitude: 37.78825,
     longitude: -122.4324,
@@ -226,6 +229,15 @@ export default function Tracking() {
     }, [])
   );
 
+  // Effect to sync metrics from context when they change
+  useEffect(() => {
+    if (isTracking) {
+      // If tracking is already in progress, sync the steps and distance from metrics
+      setTotalSteps(metrics.steps);
+      setTotalDistance(metrics.distance * 1000); // Convert km to meters for internal state
+    }
+  }, [isTracking, metrics]);
+
   const toggleTracking = async () => {
     if (isTracking) {
       // Calculate total session duration before stopping
@@ -303,6 +315,21 @@ export default function Tracking() {
     return null;
   };
 
+  const toggleDetailedStats = () => {
+    const newValue = !showDetailedStats;
+    setShowDetailedStats(newValue);
+    
+    Animated.timing(detailedStatsHeight, {
+      toValue: newValue ? 1 : 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  // Update the value display to show the metrics from context when tracking
+  const displaySteps = isTracking ? metrics.steps : totalSteps;
+  const displayDistance = isTracking ? metrics.distance : totalDistance / 1000;
+
   return (
     <SafeAreaView style={styles.container}>
       <MapView
@@ -320,79 +347,129 @@ export default function Tracking() {
       {/* Reconnection Banner */}
       <ReconnectionBanner />
       
+      {/* Stats Container - Top of the screen */}
       <View style={styles.statsContainer}>
-        <View style={styles.statBox}>
-          <Text style={styles.statLabel}>Time</Text>
-          <Text style={styles.statValue}>
-            {formatTime(startTime, currentTime)}
-          </Text>
+        {/* Main Stats (Time and Distance) - Always visible */}
+        <View style={styles.mainStatsRow}>
+          <View style={styles.mainStatBox}>
+            <Text style={styles.mainStatLabel}>Time</Text>
+            <Text style={styles.mainStatValue}>
+              {formatTime(startTime, currentTime)}
+            </Text>
+          </View>
+          
+          <View style={styles.mainStatBox}>
+            <Text style={styles.mainStatLabel}>Distance</Text>
+            <Text style={styles.mainStatValue}>
+              {(displayDistance).toFixed(2)} km
+            </Text>
+          </View>
+          
+          <TouchableOpacity 
+            style={styles.toggleButton}
+            onPress={toggleDetailedStats}
+          >
+            <Ionicons 
+              name={showDetailedStats ? "chevron-up" : "chevron-down"} 
+              size={20} 
+              color="#666" 
+            />
+          </TouchableOpacity>
         </View>
         
-        <View style={styles.statBox}>
-          <Text style={styles.statLabel}>Distance</Text>
-          <Text style={styles.statValue}>
-            {(totalDistance / 1000).toFixed(2)} km
-          </Text>
-        </View>
-        
-        <View style={styles.statBox}>
-          <Text style={styles.statLabel}>Steps</Text>
-          <Text style={styles.statValue}>{totalSteps}</Text>
-        </View>
+        {/* Detailed Stats (Steps, Litters, Points) - Toggleable */}
+        <Animated.View 
+          style={[
+            styles.detailedStatsContainer,
+            {
+              maxHeight: detailedStatsHeight.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 120]
+              }),
+              opacity: detailedStatsHeight
+            } as any
+          ]}
+        >
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <View style={styles.iconContainer}>
+                <Ionicons name="footsteps-outline" size={16} color="#007AFF" style={styles.statIcon} />
+                <Text style={styles.statLabel}>Steps</Text>
+              </View>
+              <Text style={styles.statValue}>{displaySteps}</Text>
+            </View>
+            
+            <View style={styles.statBox}>
+              <View style={styles.iconContainer}>
+                <Ionicons name="trash-outline" size={16} color="#34C759" style={styles.statIcon} />
+                <Text style={styles.statLabel}>Litters</Text>
+              </View>
+              <Text style={styles.statValue}>{isTracking ? metrics.litters : 0}</Text>
+            </View>
+            
+            <View style={styles.statBox}>
+              <View style={styles.iconContainer}>
+                <Ionicons name="star-outline" size={16} color="#FFD700" style={styles.statIcon} />
+                <Text style={styles.statLabel}>Points</Text>
+              </View>
+              <Text style={styles.statValue}>{isTracking ? metrics.points : 0}</Text>
+            </View>
+          </View>
+        </Animated.View>
       </View>
       
-      <View style={styles.buttonContainer}>
-        {isTracking ? (
-          <>
+      {/* Bottom Button Container */}
+      <View style={styles.bottomContainer}>
+        <View style={styles.buttonContainer}>
+          {isTracking ? (
+            <>
+              <TouchableOpacity 
+                style={[
+                  styles.button, 
+                  isPaused ? styles.resumeButton : styles.pauseButton,
+                  !wsConnected && styles.disabledButton
+                ]} 
+                onPress={togglePause}
+                disabled={!wsConnected && isPaused} // Disable resume button when disconnected
+              >
+                <Text style={styles.buttonText}>
+                  {isPaused ? "Resume" : "Pause"}
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.button, styles.finishButton]} 
+                onPress={toggleTracking}
+              >
+                <Text style={styles.buttonText}>Finish</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[
+                  styles.button, 
+                  styles.cameraButton,
+                  (!isTracking || !wsConnected) && styles.disabledButton
+                ]} 
+                onPress={navigateToCamera}
+                disabled={!isTracking || !wsConnected} // Disable camera when disconnected
+              >
+                <Ionicons 
+                  name="camera" 
+                  size={24} 
+                  color={(isTracking && wsConnected) ? "#fff" : "#ccc"} 
+                />
+              </TouchableOpacity>
+            </>
+          ) : (
             <TouchableOpacity 
-              style={[
-                styles.button, 
-                isPaused ? styles.resumeButton : styles.pauseButton,
-                !wsConnected && styles.disabledButton
-              ]} 
-              onPress={togglePause}
-              disabled={!wsConnected && isPaused} // Disable resume button when disconnected
-            >
-              <Text style={styles.buttonText}>
-                {isPaused ? "Resume" : "Pause"}
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.button, styles.finishButton]} 
+              style={[styles.button, styles.startButton]} 
               onPress={toggleTracking}
             >
-              <Text style={styles.buttonText}>Finish</Text>
+              <Text style={styles.buttonText}>Start Tracking</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[
-                styles.button, 
-                styles.cameraButton,
-                (!isTracking || !wsConnected) && styles.disabledButton
-              ]} 
-              onPress={navigateToCamera}
-              disabled={!isTracking || !wsConnected} // Disable camera when disconnected
-            >
-              <Ionicons 
-                name="camera" 
-                size={24} 
-                color={(isTracking && wsConnected) ? "#fff" : "#ccc"} 
-              />
-            </TouchableOpacity>
-          </>
-        ) : (
-          <TouchableOpacity 
-            style={[styles.button, styles.startButton]} 
-            onPress={toggleTracking}
-          >
-            <Text style={styles.buttonText}>Start Tracking</Text>
-          </TouchableOpacity>
-        )}
+          )}
+        </View>
       </View>
-      
-      {/* Add bottom padding to avoid tab bar overlap */}
-      <View style={styles.bottomSpacer} />
     </SafeAreaView>
   );
 }
@@ -400,11 +477,10 @@ export default function Tracking() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#fff",
   },
   map: {
-    flex: 1,
-    marginTop: 0, // No header gap needed
+    ...StyleSheet.absoluteFillObject,
   },
   connectionIndicator: {
     position: 'absolute',
@@ -421,74 +497,139 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   statsContainer: {
+    position: "absolute",
+    top: 50,
+    left: 20,
+    right: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    borderRadius: 10,
+    padding: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  mainStatsRow: {
     flexDirection: "row",
-    backgroundColor: "#fff",
-    paddingVertical: 15,
-    paddingHorizontal: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#e0e0e0",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  mainStatBox: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 5,
+    paddingHorizontal: 5,
+  },
+  mainStatLabel: {
+    fontSize: 12,
+    color: "#666",
+    marginBottom: 2,
+  },
+  mainStatValue: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  toggleButton: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailedStatsContainer: {
+    overflow: 'hidden',
+    marginTop: 5,
+  },
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
   },
   statBox: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "center",
-    borderRightWidth: 1,
-    borderRightColor: "#e0e0e0",
+    padding: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    borderRadius: 8,
+    marginHorizontal: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: "#666",
-    marginBottom: 5,
+    marginBottom: 3,
   },
   statValue: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "bold",
     color: "#333",
   },
   buttonContainer: {
     flexDirection: "row",
+    justifyContent: "space-around",
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    borderRadius: 10,
     padding: 15,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#e0e0e0",
+    marginBottom: Platform.OS === 'ios' ? 20 : 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 5,
   },
   button: {
     flex: 1,
+    marginHorizontal: 5,
+    paddingVertical: 15,
+    borderRadius: 10,
+    backgroundColor: "#34C759",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
-    borderRadius: 25,
-    marginHorizontal: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 5,
   },
   startButton: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#34C759",
   },
   pauseButton: {
-    backgroundColor: "#FF9800",
+    backgroundColor: "#FF9500",
   },
   resumeButton: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#34C759",
   },
   finishButton: {
-    backgroundColor: "#F44336",
+    backgroundColor: "#FF3B30",
   },
   cameraButton: {
+    backgroundColor: "#007AFF",
     flex: 0.5,
-    backgroundColor: "#2196F3",
   },
   buttonText: {
-    color: "#fff",
+    color: "#FFF",
     fontWeight: "bold",
     fontSize: 16,
   },
   
   // Bottom spacing
-  bottomSpacer: {
-    height: Platform.OS === 'ios' ? 80 : 80, // Extra padding at the bottom
+  bottomContainer: {
+    position: "absolute",
+    bottom: 35,
+    left: 0,
+    right: 0,
+    padding: 20,
+    zIndex: 10,
   },
   reconnectionBanner: {
     position: 'absolute',
-    top: 50,
+    top: 240, // Position below the stats container
     left: 10,
     right: 10,
     backgroundColor: 'rgba(244, 67, 54, 0.9)',
@@ -497,6 +638,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 5,
   },
   reconnectionText: {
     color: '#FFF',
@@ -506,5 +648,13 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  iconContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statIcon: {
+    marginRight: 5,
   },
 });

@@ -185,6 +185,32 @@ export const setupSocketHandlers = (io: Server) => {
         console.log(`[${new Date().toISOString()}] User ${userId} started tracking. Session: ${sessionId} (new: ${isNew})`);
         console.log(`[${new Date().toISOString()}] Active sessions: ${Object.keys(sessions).join(', ') || 'none'}`);
         
+        // Create a new PloggingSession in the database when the session starts
+        if (isNew) {
+          console.log(`[${new Date().toISOString()}] Creating new PloggingSession record for sessionId: ${sessionId}`);
+          try {
+            // Create a new PloggingSession record with initial data
+            await prisma.ploggingSession.create({
+              data: {
+                sessionId,
+                userId,
+                startTime: sessions[sessionId].startTime,
+                endTime: null, // Will be updated when session ends
+                elapsedTime: 0, // Will be updated when session ends
+                routes: [], // Will be updated as the user moves
+                distancesTravelled: 0, // Will be updated as the user moves
+                steps: 0, // Will be updated as the user moves
+                litterCollected: {}, // Will be updated as the user collects litter
+                points: 0 // Will be updated when session ends
+              }
+            });
+            console.log(`[${new Date().toISOString()}] Created new PloggingSession record for sessionId: ${sessionId}`);
+          } catch (error) {
+            console.error(`[${new Date().toISOString()}] Error creating PloggingSession:`, error);
+            // Continue anyway as we can update the session later
+          }
+        }
+        
         // Send session ID back to client
         console.log(`[${new Date().toISOString()}] Emitting session_id event with sessionId: ${sessionId} to socket ${socket.id}`);
         socket.emit('session_id', { sessionId });
@@ -331,8 +357,9 @@ export const setupSocketHandlers = (io: Server) => {
     
     socket.on('finish_tracking', async (data) => {
       const sessionId = data.sessionId;
+      const clientMetrics = data.metrics || { litters: 0, points: 0 };
       
-      console.log(`Finish tracking received for session ${sessionId}`);
+      console.log(`Finish tracking received for session ${sessionId}`, { clientMetrics });
       console.log(`Active sessions before finish: ${Object.keys(sessions)}`);
       
       if (!sessionId) {
@@ -361,19 +388,58 @@ export const setupSocketHandlers = (io: Server) => {
         // Save session to database
         const userId = session.userId;
         
-        // Save to database using Prisma
-        const ploggingSession = await prisma.ploggingSession.create({
+        // Use the client-side metrics if provided
+        const initialLitterData = clientMetrics.litters > 0 ? 
+          { litters: clientMetrics.litters } : 
+          {};
+        
+        // Calculate session duration
+        const elapsedTime = Math.floor(((session.endTime || new Date()).getTime() - session.startTime.getTime()) / 1000);
+          
+        // Update the existing PloggingSession in the database instead of creating a new one
+        const ploggingSession = await prisma.ploggingSession.update({
+          where: {
+            sessionId: sessionId,
+          },
           data: {
-            sessionId,
-            userId,
-            startTime: session.startTime,
             endTime: session.endTime || new Date(), // Use current date if endTime is null
-            elapsedTime: Math.floor(((session.endTime || new Date()).getTime() - session.startTime.getTime()) / 1000),
+            elapsedTime: elapsedTime,
             routes: session.route,
             distancesTravelled: session.totalDistance,
-            steps: session.steps
+            steps: session.steps,
+            litterCollected: initialLitterData, // Use client metrics
+            points: clientMetrics.points || 0
           }
         });
+        
+        // Get user's current litter data
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { collectedLitters: true }
+        });
+        
+        // Prepare data for user update
+        const pointsToAdd = clientMetrics.points || 0;
+        const littersToAdd = clientMetrics.litters || 0;
+        
+        let updatedLitterCollection = user?.collectedLitters ? 
+          (typeof user.collectedLitters === 'string' ? 
+            JSON.parse(user.collectedLitters as string) : 
+            user.collectedLitters as Record<string, number>) : 
+          {};
+        
+        // If we have detailed litter data, update the user's collection
+        if (clientMetrics.litterDetails) {
+          for (const [litterType, count] of Object.entries(clientMetrics.litterDetails)) {
+            updatedLitterCollection[litterType] = (updatedLitterCollection[litterType] || 0) + (count as number);
+          }
+          console.log(`Using client-provided litter details: ${JSON.stringify(clientMetrics.litterDetails)}`);
+        } else if (littersToAdd > 0) {
+          // Just add a generic "litter" entry if we only have a count
+          updatedLitterCollection.litter = (updatedLitterCollection.litter || 0) + littersToAdd;
+        }
+        
+        console.log(`Transferring ${littersToAdd} litters and ${pointsToAdd} points from session to user totals`);
         
         // Update user metrics
         await prisma.user.update({
@@ -382,14 +448,17 @@ export const setupSocketHandlers = (io: Server) => {
             totalSteps: { increment: session.steps },
             totalDistance: { increment: session.totalDistance },
             totalTime: { 
-              increment: Math.floor((session.endTime.getTime() - session.startTime.getTime()) / 1000)
+              increment: elapsedTime
             },
+            totalPoints: { increment: pointsToAdd },
+            totalLitters: { increment: littersToAdd },
+            collectedLitters: updatedLitterCollection,
             sessionId: null  // Remove session ID
           }
         });
         
         // Calculate metrics
-        const durationSeconds = (session.endTime.getTime() - session.startTime.getTime()) / 1000;
+        const durationSeconds = elapsedTime;
         const distanceKm = session.totalDistance / 1000;
         const steps = session.steps;
         
@@ -406,11 +475,35 @@ export const setupSocketHandlers = (io: Server) => {
           duration: durationSeconds,
           distance: distanceKm,
           steps,
+          litters: littersToAdd,
+          points: pointsToAdd,
           session_id: ploggingSession.id
         });
         
       } catch (error) {
         console.error('Error finishing tracking:', error);
+        
+        // Even if there's an error processing the session, try to clear the user's sessionId
+        try {
+          if (sessions[sessionId] && sessions[sessionId].userId) {
+            const userId = sessions[sessionId].userId;
+            console.log(`Attempting to clear sessionId for user ${userId} despite error`);
+            
+            await prisma.user.update({
+              where: { id: userId },
+              data: { sessionId: null }
+            });
+            
+            console.log(`Successfully cleared sessionId for user ${userId}`);
+            
+            // Also clean up the in-memory session
+            console.log(`Deleting session ${sessionId} from active sessions despite error`);
+            delete sessions[sessionId];
+          }
+        } catch (clearError) {
+          console.error('Failed to clear sessionId after error:', clearError);
+        }
+        
         socket.emit('error', { message: 'Failed to complete tracking session' });
       }
     });
@@ -508,31 +601,112 @@ export const setupSocketHandlers = (io: Server) => {
           
           // Try to save to database if possible
           try {
-            // Save to database using Prisma
-            await prisma.ploggingSession.create({
-              data: {
-                sessionId,
-                userId: session.userId,
-                startTime: session.startTime,
-                endTime: session.endTime || new Date(), // Use current date if endTime is null
-                elapsedTime: Math.floor(((session.endTime || new Date()).getTime() - session.startTime.getTime()) / 1000),
-                routes: session.route,
-                distancesTravelled: session.totalDistance,
-                steps: session.steps
-              }
+            // Calculate session duration
+            const elapsedTime = Math.floor(((session.endTime || new Date()).getTime() - session.startTime.getTime()) / 1000);
+            
+            // Find and update the existing PloggingSession record
+            let ploggingSession;
+            try {
+              // Try to update the existing record
+              ploggingSession = await prisma.ploggingSession.update({
+                where: {
+                  sessionId: sessionId,
+                },
+                data: {
+                  endTime: session.endTime || new Date(),
+                  elapsedTime: elapsedTime,
+                  routes: session.route,
+                  distancesTravelled: session.totalDistance,
+                  steps: session.steps,
+                  litterCollected: {} // Initialize with empty object
+                }
+              });
+              
+              console.log(`[${new Date().toISOString()}] Updated abandoned PloggingSession record ${sessionId}`);
+            } catch (error) {
+              // If update fails, the record might not exist yet, so create it
+              console.log(`[${new Date().toISOString()}] Failed to update PloggingSession, creating new record`);
+              ploggingSession = await prisma.ploggingSession.create({
+                data: {
+                  sessionId,
+                  userId: session.userId,
+                  startTime: session.startTime,
+                  endTime: session.endTime || new Date(),
+                  elapsedTime: elapsedTime,
+                  routes: session.route,
+                  distancesTravelled: session.totalDistance,
+                  steps: session.steps,
+                  litterCollected: {} // Initialize with empty object
+                }
+              });
+              console.log(`[${new Date().toISOString()}] Created new PloggingSession record for abandoned session ${sessionId}`);
+            }
+            
+            // Get any litter data collected during this session
+            const sessionFromDB = await prisma.ploggingSession.findUnique({
+              where: { sessionId },
+              select: { litterCollected: true, points: true }
             });
+            
+            // Get user's current litter data
+            const user = await prisma.user.findUnique({
+              where: { id: session.userId },
+              select: { collectedLitters: true }
+            });
+            
+            // Prepare data for user update
+            const pointsToAdd = sessionFromDB?.points || 0;
+            const littersToAdd = sessionFromDB?.litterCollected ? 
+              Object.keys(sessionFromDB.litterCollected).length : 0;
+            
+            let updatedLitterCollection = user?.collectedLitters ? 
+              (typeof user.collectedLitters === 'string' ? 
+                JSON.parse(user.collectedLitters as string) : 
+                user.collectedLitters as Record<string, number>) : 
+              {};
+            
+            // Process litter data if available
+            if (sessionFromDB?.litterCollected) {
+              const sessionLitter = typeof sessionFromDB.litterCollected === 'string'
+                ? JSON.parse(sessionFromDB.litterCollected as string)
+                : sessionFromDB.litterCollected as Record<string, number>;
+              
+              // Add session litter to user's total
+              for (const [litterType, count] of Object.entries(sessionLitter)) {
+                updatedLitterCollection[litterType] = (updatedLitterCollection[litterType] || 0) + (count as number);
+              }
+            }
+            
+            console.log(`Transferring ${littersToAdd} litters and ${pointsToAdd} points from abandoned session to user totals`);
             
             // Update user record to clear session ID
             await prisma.user.update({
               where: { id: session.userId },
               data: {
-                sessionId: null
+                sessionId: null,
+                totalPoints: { increment: pointsToAdd },
+                totalLitters: { increment: littersToAdd },
+                collectedLitters: updatedLitterCollection
               }
             });
             
             console.log(`[${new Date().toISOString()}] Saved abandoned session ${sessionId} to database`);
           } catch (error) {
             console.error(`[${new Date().toISOString()}] Error saving abandoned session:`, error);
+            
+            // Even if there's an error processing the abandoned session, try to clear the user's sessionId
+            try {
+              console.log(`[${new Date().toISOString()}] Attempting to clear sessionId for user ${session.userId} despite error`);
+              
+              await prisma.user.update({
+                where: { id: session.userId },
+                data: { sessionId: null }
+              });
+              
+              console.log(`[${new Date().toISOString()}] Successfully cleared sessionId for user ${session.userId}`);
+            } catch (clearError) {
+              console.error(`[${new Date().toISOString()}] Failed to clear sessionId after error:`, clearError);
+            }
           }
         }
         
@@ -561,8 +735,6 @@ export const initWebSocketServer = (server: HttpServer) => {
       origin: '*',
       methods: ['GET', 'POST'],
     },
-    pingTimeout: 30000,
-    pingInterval: 25000,
     connectTimeout: 10000,
   });
 

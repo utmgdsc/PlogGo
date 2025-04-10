@@ -1,0 +1,8 @@
+# Add directories or file patterns to ignore during indexing (e.g. foo/ or *.csv)
+backend/auth_tests/
+backend/litter-detection/
+backend/models/
+backend/secret
+backend/utils/__pycache__/
+backend/__pycache__/
+backend/.venv/

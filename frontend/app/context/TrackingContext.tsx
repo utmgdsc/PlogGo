@@ -18,6 +18,8 @@ interface TrackingCompletedEvent {
   duration: number;
   distance: number;
   steps: number;
+  litters?: number;
+  points?: number;
   session_id: string;
 }
 
@@ -34,7 +36,10 @@ interface TrackingContextProps {
     distance: number;
     duration: number;
     steps: number;
+    litters: number;
+    points: number;
   };
+  updateMetrics: (newMetrics: {litters?: number, points?: number, litterDetails?: Record<string, number>}) => void;
   ensureSocketConnection: () => Promise<boolean>;
 }
 
@@ -71,52 +76,14 @@ export const TrackingProvider: React.FC<TrackingProviderProps> = ({ children }) 
   const [metrics, setMetrics] = useState({
     distance: 0,
     duration: 0,
-    steps: 0
+    steps: 0,
+    litters: 0,
+    points: 0
   });
   const [routeData, setRouteData] = useState<Array<{latitude: number; longitude: number; timestamp: Date}>>([]);
   
   // Socket.IO reference
   const socketRef = useRef<Socket | null>(null);
-
-  // Add a ref to track the ping interval
-  const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Add a useEffect to handle socket disconnection during active tracking
-  useEffect(() => {
-    // If we're tracking and the socket disconnects, we need to try reconnecting
-    if (isTracking && !wsConnected && socketRef.current) {
-      console.log('Socket disconnected during active tracking, attempting to reconnect...');
-      
-      // Pause tracking when connection is lost
-      if (!isPaused) {
-        console.log('Automatically pausing tracking due to connection loss');
-        setIsPaused(true);
-      }
-      
-      // Try to reconnect
-      const reconnectTimer = setTimeout(async () => {
-        try {
-          console.log('Attempting to reconnect socket...');
-          const reconnected = await ensureSocketConnection();
-          
-          if (reconnected) {
-            console.log('Reconnected successfully, tracking can continue');
-            // Only automatically unpause if the user didn't manually pause
-            if (isPaused && !wasManuallyPaused.current) {
-              console.log('Automatically resuming tracking after reconnection');
-              setIsPaused(false);
-            }
-          } else {
-            console.log('Failed to reconnect, will retry...');
-          }
-        } catch (error) {
-          console.error('Error during socket reconnection:', error);
-        }
-      }, 3000); // Give it a few seconds before trying to reconnect
-      
-      return () => clearTimeout(reconnectTimer);
-    }
-  }, [isTracking, wsConnected]);
 
   // Add a ref to track if the user manually paused
   const wasManuallyPaused = useRef<boolean>(false);
@@ -133,8 +100,6 @@ export const TrackingProvider: React.FC<TrackingProviderProps> = ({ children }) 
       if (socketRef.current.hasListeners('session_id')) socketRef.current.off('session_id');
       if (socketRef.current.hasListeners('error')) socketRef.current.off('error');
       if (socketRef.current.hasListeners('tracking_completed')) socketRef.current.off('tracking_completed');
-      if (socketRef.current.hasListeners('ping')) socketRef.current.off('ping');
-      if (socketRef.current.hasListeners('pong')) socketRef.current.off('pong');
       
       // Force disconnect
       if (socketRef.current.connected) {
@@ -146,144 +111,105 @@ export const TrackingProvider: React.FC<TrackingProviderProps> = ({ children }) 
       socketRef.current = null;
     }
     
-    // Clear any ping intervals
-    if (pingIntervalRef.current) {
-      clearInterval(pingIntervalRef.current);
-      pingIntervalRef.current = null;
-    }
-    
     // Reset connection state
     setWsConnected(false);
   };
+  
+  // Define initSocket function outside of useEffect so it can be referenced elsewhere
+  const initSocket = async () => {
+    // Clean up any existing connection first
+    cleanupSocketConnection();
+    
+    // Get JWT token first
+    let token = null;
+    if (getToken) {
+      token = await getToken();
+    }
 
-  // Update the useEffect cleanup to use the cleanup function
-  useEffect(() => {
-    const initSocket = async () => {
-      // Clean up any existing connection first
-      cleanupSocketConnection();
+    if (!token) {
+      console.log('No authentication token available for socket connection');
+      return;
+    }
+
+    // Initialize socket with auth token in handshake
+    socketRef.current = io(WEBSOCKET_URL, {
+      autoConnect: false,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      timeout: 10000,
+      auth: {
+        token: token
+      }
+    });
+
+    // Set up event listeners
+    const socket = socketRef.current;
+
+    socket.on('connect', () => {
+      console.log('Socket.IO connected');
+      setWsConnected(true);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Socket.IO disconnected');
+      setWsConnected(false);
+    });
+
+    socket.on('connect_error', (error: Error) => {
+      console.log('Socket.IO connection error:', error);
+      setWsConnected(false);
+    });
+
+    socket.on('session_id', (data: SessionIdEvent) => {
+      console.log('Received session ID:', data.sessionId);
+      setSessionId(data.sessionId);
+    });
+
+    socket.on('error', (data: ErrorEvent) => {
+      console.log('Socket.IO error:', data.message, data.code);
       
-      // Get JWT token first
-      let token = null;
-      if (getToken) {
-        token = await getToken();
-      }
-
-      if (!token) {
-        console.log('No authentication token available for socket connection');
-        return;
-      }
-
-      // Initialize socket with auth token in handshake
-      socketRef.current = io(WEBSOCKET_URL, {
-        autoConnect: false,
-        reconnection: true,
-        reconnectionAttempts: 5,
-        timeout: 10000,
-        auth: {
-          token: token
-        }
-      });
-
-      // Set up event listeners
-      const socket = socketRef.current;
-
-      socket.on('connect', () => {
-        console.log('Socket.IO connected');
-        setWsConnected(true);
-      });
-
-      socket.on('disconnect', () => {
-        console.log('Socket.IO disconnected');
-        setWsConnected(false);
-      });
-
-      socket.on('connect_error', (error: Error) => {
-        console.log('Socket.IO connection error:', error);
-        setWsConnected(false);
-      });
-
-      socket.on('session_id', (data: SessionIdEvent) => {
-        console.log('Received session ID:', data.sessionId);
-        setSessionId(data.sessionId);
-      });
-
-      socket.on('error', (data: ErrorEvent) => {
-        console.log('Socket.IO error:', data.message, data.code);
-        
-        // Handle special error codes
-        if (data.code === 'STALE_SESSION' || data.code === 'INVALID_SESSION') {
-          console.log('Received session error, resetting tracking state');
-          setSessionId(null);
-          setIsTracking(false);
-          setIsPaused(false);
-          setRouteData([]);
-          
-          // Alert the user
-          // In a real app, you might want to use a toast or other UI notification
-          alert(data.message);
-        }
-      });
-
-      socket.on('tracking_completed', (data: TrackingCompletedEvent) => {
-        console.log('Tracking completed:', data);
-        setMetrics({
-          distance: data.distance || 0,
-          duration: data.duration || 0,
-          steps: data.steps || 0
-        });
-
-        // Make sure sessionId is cleared when tracking is completed
-        console.log(`Resetting sessionId in tracking_completed handler`);
+      // Handle special error codes
+      if (data.code === 'STALE_SESSION' || data.code === 'INVALID_SESSION') {
+        console.log('Received session error, resetting tracking state');
         setSessionId(null);
-
-        // Navigate to summary screen - no params needed as it will fetch data
-        // Reset route data after navigating
+        setIsTracking(false);
+        setIsPaused(false);
         setRouteData([]);
+        // Note: Not resetting metrics so they remain visible
         
-        // Disconnect socket after a short delay to ensure the tracking_completed event is fully processed
-        setTimeout(() => {
-          console.log('Disconnecting socket after tracking completed');
-          socket.disconnect();
-        }, 1000);
-      });
+        // Alert the user
+        // In a real app, you might want to use a toast or other UI notification
+        alert(data.message);
+      }
+    });
 
-      // Set up ping/pong handling for connection health monitoring
-      socket.on('ping', () => {
-        console.log('Received ping from server, responding with pong');
-        socket.emit('pong');
-      });
+    socket.on('tracking_completed', (data: TrackingCompletedEvent) => {
+      console.log('Tracking completed:', data);
       
-      // Add client-side ping/pong to detect stale connections
-      pingIntervalRef.current = setInterval(() => {
-        if (socket.connected) {
-          console.log('Sending ping to server...');
-          const pingStart = Date.now();
-          
-          // Send ping and wait for pong
-          socket.emit('ping');
-          
-          // Set timeout for pong response
-          const pongTimeout = setTimeout(() => {
-            console.error('Server pong timeout - connection may be stale');
-            // If we're tracking, this could indicate a problem
-            if (isTracking) {
-              console.log('Connection appears stale during active tracking');
-              setWsConnected(false);
-            }
-          }, 5000);
-          
-          // Handle pong response
-          socket.once('pong', () => {
-            clearTimeout(pongTimeout);
-            const latency = Date.now() - pingStart;
-            console.log(`Received pong from server, latency: ${latency}ms`);
-          });
+      // Update metrics with session data but preserve litter and points data
+
+      // Make sure sessionId is cleared when tracking is completed
+      console.log(`Resetting sessionId in tracking_completed handler`);
+      setSessionId(null);
+
+      // Reset route data after tracking is completed
+      setRouteData([]);
+      
+      // Disconnect socket after a short delay to ensure the tracking_completed event is fully processed
+      setTimeout(() => {
+        console.log('Disconnecting socket after tracking completed');
+        if (socketRef.current) {
+          socketRef.current.disconnect();
         }
-      }, 30000); // Every 30 seconds
+      }, 1000);
+    });
 
-      socket.connect();
-    };
+    socket.connect();
+    return socket;
+  };
 
+  // Update the useEffect to use the defined initSocket function
+  useEffect(() => {
     initSocket();
 
     // Clean up when component unmounts or dependencies change
@@ -300,6 +226,15 @@ export const TrackingProvider: React.FC<TrackingProviderProps> = ({ children }) 
         
         // Reset tracking state before starting
         setRouteData([]);
+        
+        // Reset metrics when starting a new session
+        setMetrics({
+          distance: 0,
+          duration: 0,
+          steps: 0,
+          litters: 0,
+          points: 0
+        });
         
         // Ensure we have a clean, connected socket
         const socket = socketRef.current;
@@ -343,7 +278,14 @@ export const TrackingProvider: React.FC<TrackingProviderProps> = ({ children }) 
         
         // Now we should have a connected socket
         console.log('Socket connected, emitting start_tracking event');
-        socketRef.current.emit('start_tracking', {});
+        if (socketRef.current) {
+          socketRef.current.emit('start_tracking', {});
+        } else {
+          console.error('Socket reference is null, cannot start tracking');
+          setIsTracking(false);
+          alert('Could not connect to the server. Please try again.');
+          return null;
+        }
         
         // Wait for session ID with a single attempt but longer timeout
         console.log('Waiting for session_id event...');
@@ -412,21 +354,45 @@ export const TrackingProvider: React.FC<TrackingProviderProps> = ({ children }) 
     if (isTracking) {
       try {
         const socket = socketRef.current;
-        if (!socket) return;
-
-        // Send finish_tracking event
-        if (sessionId) {
-          socket.emit('finish_tracking', {
-            sessionId: sessionId
-          });
-          // Reset the sessionId immediately to prevent stale references
-          console.log(`Resetting sessionId ${sessionId} in stopTracking`);
-          setSessionId(null);
-        }
-
+        const currentSessionId = sessionId; // Store for later reference in case state changes
+        
+        // Reset UI states immediately to improve perceived responsiveness
         setIsTracking(false);
         setIsPaused(false);
+        
+        // Reset route data but keep the metrics values for displaying
         setRouteData([]);
+        
+        // We do NOT reset metrics here anymore, to keep them displayed
+        // until the next tracking session starts
+        
+        // If we don't have a socket, just clean up our local state
+        if (!socket) {
+          console.log('No socket reference, just cleaning up local state');
+          setSessionId(null);
+          return;
+        }
+
+        // Send finish_tracking event with current metrics
+        if (currentSessionId) {
+          console.log('Sending finish_tracking with metrics:', metrics);
+          
+          // Reset the sessionId immediately to prevent stale references
+          console.log(`Resetting sessionId ${currentSessionId} in stopTracking`);
+          setSessionId(null);
+          
+          socket.emit('finish_tracking', {
+            sessionId: currentSessionId,
+            metrics: {
+              litters: metrics.litters,
+              points: metrics.points,
+              litterDetails: (metrics as any).litterDetails
+            }
+          });
+        } else {
+          console.log('No sessionId available, skipping finish_tracking call');
+          setSessionId(null); // Ensure sessionId is null anyway
+        }
         
         // Disconnect the socket after a delay to ensure events are processed
         setTimeout(() => {
@@ -437,6 +403,11 @@ export const TrackingProvider: React.FC<TrackingProviderProps> = ({ children }) 
         }, 2000);
       } catch (error) {
         console.error('Error stopping tracking:', error);
+        // Make sure UI state is reset even if there's an error
+        setIsTracking(false);
+        setIsPaused(false);
+        setSessionId(null);
+        // Don't reset metrics on error
       }
     }
   };
@@ -461,6 +432,7 @@ export const TrackingProvider: React.FC<TrackingProviderProps> = ({ children }) 
         setSessionId(null);
         setIsPaused(false);
         setRouteData([]);
+        // Note: We're not resetting metrics here to keep the values
         alert('Lost connection to the server. Your session has been ended.');
       }, 30000); // 30 seconds timeout
     }
@@ -736,6 +708,13 @@ export const TrackingProvider: React.FC<TrackingProviderProps> = ({ children }) 
     return true;
   };
 
+  const updateMetrics = (newMetrics: {litters?: number, points?: number, litterDetails?: Record<string, number>}) => {
+    setMetrics(prevMetrics => ({
+      ...prevMetrics,
+      ...newMetrics
+    }));
+  };
+
   const value = {
     isTracking,
     sessionId,
@@ -746,6 +725,7 @@ export const TrackingProvider: React.FC<TrackingProviderProps> = ({ children }) 
     sendLocationUpdate,
     wsConnected,
     metrics,
+    updateMetrics,
     ensureSocketConnection
   };
 

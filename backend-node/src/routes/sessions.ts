@@ -31,7 +31,24 @@ router.get('/latest', async (req, res) => {
       return res.status(404).json({ error: 'No completed sessions found' });
     }
 
-    return res.json(latestSession);
+    // Get litter data
+    const litterData = latestSession.litterCollected ? 
+      (typeof latestSession.litterCollected === 'string' ?
+        JSON.parse(latestSession.litterCollected as string) :
+        latestSession.litterCollected) : 
+      {};
+    
+    // Count total litter collected in this session
+    const totalLitter = Object.values(litterData).reduce((sum: number, count) => sum + (count as number), 0);
+    
+    // Format the response with litter data
+    const response = {
+      ...latestSession,
+      litterDetails: litterData,
+      totalLitter
+    };
+
+    return res.json(response);
   } catch (error) {
     console.error('Error fetching latest session:', error);
     return res.status(500).json({ error: 'Server error fetching session data' });
@@ -61,7 +78,24 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Session not found' });
     }
 
-    return res.json(session);
+    // Get litter data
+    const litterData = session.litterCollected ? 
+      (typeof session.litterCollected === 'string' ?
+        JSON.parse(session.litterCollected as string) :
+        session.litterCollected) : 
+      {};
+    
+    // Count total litter collected in this session
+    const totalLitter = Object.values(litterData).reduce((sum: number, count) => sum + (count as number), 0);
+    
+    // Format the response with litter data
+    const response = {
+      ...session,
+      litterDetails: litterData,
+      totalLitter
+    };
+
+    return res.json(response);
   } catch (error) {
     console.error('Error fetching session:', error);
     return res.status(500).json({ error: 'Server error fetching session data' });
@@ -88,7 +122,25 @@ router.get('/', async (req, res) => {
       }
     });
 
-    return res.json(sessions);
+    // Process each session to include litter data
+    const processedSessions = sessions.map(session => {
+      const litterData = session.litterCollected ? 
+        (typeof session.litterCollected === 'string' ?
+          JSON.parse(session.litterCollected as string) :
+          session.litterCollected) : 
+        {};
+      
+      // Count total litter collected in this session
+      const totalLitter = Object.values(litterData).reduce((sum: number, count) => sum + (count as number), 0);
+      
+      return {
+        ...session,
+        litterDetails: litterData,
+        totalLitter
+      };
+    });
+
+    return res.json(processedSessions);
   } catch (error) {
     console.error('Error fetching sessions:', error);
     return res.status(500).json({ error: 'Server error fetching sessions' });

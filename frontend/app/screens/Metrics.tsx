@@ -50,8 +50,8 @@ export default function Metrics() {
 
       const Steps = response.data.steps;
       const Distance = response.data.distance;
-      const Time = response.data.time;
-      const Calories = response.data.calories;
+      const Time = Math.floor(response.data.time / 60);
+      const Calories = Math.floor(response.data.calories);
       const Litter = response.data.litter;
       const Curr_Streak = response.data.curr_streak;
       setProgress({ Steps, Distance, Time, Calories, Litter, Curr_Streak });
@@ -225,7 +225,7 @@ export default function Metrics() {
               end={{ x: 1, y: 1 }}
             >
               <FontAwesome6 name="fire-flame-curved" size={28} color="#2196F3" />
-              <Text style={styles.summaryValue}>{progress.Calories}</Text>
+              <Text style={styles.summaryValue}>{Math.floor(progress.Calories)}</Text>
               <Text style={styles.summaryLabel}>Calories</Text>
             </LinearGradient>
           </View>
