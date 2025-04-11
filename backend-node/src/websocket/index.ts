@@ -389,9 +389,8 @@ export const setupSocketHandlers = (io: Server) => {
         const userId = session.userId;
         
         // Use the client-side metrics if provided
-        const initialLitterData = clientMetrics.litters > 0 ? 
-          { litters: clientMetrics.litters } : 
-          {};
+        const initialLitterData = clientMetrics.litterDetails || 
+          (clientMetrics.litters > 0 ? { litter: clientMetrics.litters } : {});
         
         // Calculate session duration
         const elapsedTime = Math.floor(((session.endTime || new Date()).getTime() - session.startTime.getTime()) / 1000);
@@ -407,7 +406,7 @@ export const setupSocketHandlers = (io: Server) => {
             routes: session.route,
             distancesTravelled: session.totalDistance,
             steps: session.steps,
-            litterCollected: initialLitterData, // Use client metrics
+            litterCollected: initialLitterData, // Use detailed litter data
             points: clientMetrics.points || 0
           }
         });

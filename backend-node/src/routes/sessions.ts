@@ -45,7 +45,8 @@ router.get('/latest', async (req, res) => {
     const response = {
       ...latestSession,
       litterDetails: litterData,
-      totalLitter
+      totalLitter,
+      points: latestSession.points || 0 // Explicitly include points field
     };
 
     return res.json(response);

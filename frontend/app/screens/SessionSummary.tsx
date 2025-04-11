@@ -13,7 +13,7 @@ import {
 import MapView, { Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFonts } from 'expo-font';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTracking } from '../context/TrackingContext';
@@ -27,7 +27,7 @@ type RootStackParamList = {
   SessionSummary: undefined;
 };
 
-type SummaryScreenNavigationProp = StackNavigationProp<RootStackParamList, 'SessionSummary'>;
+type SummaryScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SessionSummary'>;
 
 // Define session data interface
 interface SessionData {
@@ -81,6 +81,7 @@ export default function SessionSummary() {
   const [routeCoordinates, setRouteCoordinates] = useState<Array<{latitude: number; longitude: number}>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   // Load fonts
   const [loaded] = useFonts({
@@ -122,16 +123,23 @@ export default function SessionSummary() {
           
           // Process route data for map
           if (data.routes && data.routes.length > 0) {
-            const coordinates = data.routes.map((point: any) => ({
-              latitude: point.latitude,
-              longitude: point.longitude
-            }));
+            const validCoordinates = data.routes
+              .filter((point: any) => 
+                typeof point.latitude === 'number' && 
+                typeof point.longitude === 'number' &&
+                !isNaN(point.latitude) && 
+                !isNaN(point.longitude)
+              )
+              .map((point: any) => ({
+                latitude: point.latitude,
+                longitude: point.longitude
+              }));
             
-            setRouteCoordinates(coordinates);
-            
-            // Set map region to fit the route
-            if (coordinates.length > 0) {
-              const firstCoord = coordinates[0];
+            if (validCoordinates.length > 0) {
+              setRouteCoordinates(validCoordinates);
+              
+              // Set map region to fit the route
+              const firstCoord = validCoordinates[0];
               setMapRegion({
                 latitude: firstCoord.latitude,
                 longitude: firstCoord.longitude,
@@ -160,8 +168,8 @@ export default function SessionSummary() {
   }, []);
 
   const handleContinue = () => {
-    // Navigate back to the main app
-    navigation.navigate('MainTabs');
+    // Simply go back to the previous screen (MainTabs)
+    navigation.goBack();
   };
 
   // Ensure we reconnect the socket when navigating back from this screen
@@ -237,21 +245,30 @@ export default function SessionSummary() {
         <View style={styles.mapCard}>
           <Text style={styles.sectionTitle}>Your Route</Text>
           <View style={styles.mapContainer}>
-            <MapView
-              style={styles.map}
-              provider={PROVIDER_GOOGLE}
-              region={mapRegion}
-              scrollEnabled={false}
-              zoomEnabled={false}
-            >
-              {routeCoordinates.length > 0 && (
-                <Polyline
-                  coordinates={routeCoordinates}
-                  strokeWidth={4}
-                  strokeColor="#34C759"
-                />
-              )}
-            </MapView>
+            {mapRegion.latitude && mapRegion.longitude && mapReady ? (
+              <MapView
+                style={styles.map}
+                provider={PROVIDER_GOOGLE}
+                region={mapRegion}
+                scrollEnabled={false}
+                zoomEnabled={false}
+                onMapReady={() => setMapReady(true)}
+              >
+                {routeCoordinates.length > 0 && (
+                  <Polyline
+                    coordinates={routeCoordinates}
+                    strokeWidth={4}
+                    strokeColor="#34C759"
+                    tappable={false}
+                    zIndex={1}
+                  />
+                )}
+              </MapView>
+            ) : (
+              <View style={styles.mapPlaceholder}>
+                <Text style={styles.mapPlaceholderText}>Loading map...</Text>
+              </View>
+            )}
           </View>
         </View>
         
@@ -593,6 +610,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyLitterText: {
+    fontFamily: 'Poppins-Light',
+    fontSize: 14,
+    color: '#8E8E93',
+  },
+  mapPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+  },
+  mapPlaceholderText: {
     fontFamily: 'Poppins-Light',
     fontSize: 14,
     color: '#8E8E93',

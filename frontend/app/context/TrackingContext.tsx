@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, ReactNode, useRef, useEffec
 import { io, Socket } from 'socket.io-client';
 import { WEBSOCKET_URL } from '../config/env';
 import { useAuth } from './AuthContext';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 // Define interfaces for Socket.IO events
 interface SessionIdEvent {
@@ -38,6 +39,7 @@ interface TrackingContextProps {
     steps: number;
     litters: number;
     points: number;
+    litterDetails: Record<string, number>;
   };
   updateMetrics: (newMetrics: {litters?: number, points?: number, litterDetails?: Record<string, number>}) => void;
   ensureSocketConnection: () => Promise<boolean>;
@@ -62,7 +64,10 @@ type RootStackParamList = {
   MainTabs: undefined;
   Camera: undefined;
   SessionSummary: undefined;
+  Tracking: undefined;
 };
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export const TrackingProvider: React.FC<TrackingProviderProps> = ({ children }) => {
   const auth = useAuth();
@@ -78,7 +83,8 @@ export const TrackingProvider: React.FC<TrackingProviderProps> = ({ children }) 
     duration: 0,
     steps: 0,
     litters: 0,
-    points: 0
+    points: 0,
+    litterDetails: {} as Record<string, number>
   });
   const [routeData, setRouteData] = useState<Array<{latitude: number; longitude: number; timestamp: Date}>>([]);
   
@@ -233,7 +239,8 @@ export const TrackingProvider: React.FC<TrackingProviderProps> = ({ children }) 
           duration: 0,
           steps: 0,
           litters: 0,
-          points: 0
+          points: 0,
+          litterDetails: {}
         });
         
         // Ensure we have a clean, connected socket
@@ -386,7 +393,7 @@ export const TrackingProvider: React.FC<TrackingProviderProps> = ({ children }) 
             metrics: {
               litters: metrics.litters,
               points: metrics.points,
-              litterDetails: (metrics as any).litterDetails
+              litterDetails: metrics.litterDetails || {}
             }
           });
         } else {
@@ -709,10 +716,25 @@ export const TrackingProvider: React.FC<TrackingProviderProps> = ({ children }) 
   };
 
   const updateMetrics = (newMetrics: {litters?: number, points?: number, litterDetails?: Record<string, number>}) => {
-    setMetrics(prevMetrics => ({
-      ...prevMetrics,
-      ...newMetrics
-    }));
+    setMetrics(prevMetrics => {
+      // Calculate total litters from litterDetails if provided
+      const totalLitters = newMetrics.litterDetails ? 
+        Object.values(newMetrics.litterDetails).reduce((sum, count) => sum + count, 0) : 
+        newMetrics.litters || 0;
+
+      // Merge existing litterDetails with new ones
+      const mergedLitterDetails = {
+        ...prevMetrics.litterDetails,
+        ...(newMetrics.litterDetails || {})
+      };
+
+      return {
+        ...prevMetrics,
+        litters: prevMetrics.litters + totalLitters,
+        points: prevMetrics.points + (newMetrics.points || 0),
+        litterDetails: mergedLitterDetails
+      };
+    });
   };
 
   const value = {

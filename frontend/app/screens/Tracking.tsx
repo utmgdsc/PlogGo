@@ -5,23 +5,17 @@ import * as Location from "expo-location";
 import haversine from 'haversine';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTracking } from '../context/TrackingContext';
 
-// Define the navigation type
 type RootStackParamList = {
-  Home: undefined;
-  Tracking: undefined;
+  MainTabs: undefined;
+  SessionSummary: undefined;
   Camera: undefined;
-  SessionSummary: {
-    sessionId?: string;
-    duration: number;
-    distance: number;
-    steps: number;
-  };
+  Tracking: undefined;
 };
 
-type TrackingScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Tracking'>;
+type TrackingScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Tracking'>;
 
 // Define interfaces for location data
 interface LocationData {
@@ -249,7 +243,7 @@ export default function Tracking() {
       // Reset local state
       setEndTime(Date.now());
       console.log('Navigating to SessionSummary');
-      //navigation.navigate('SessionSummary');
+      navigation.navigate('SessionSummary');
     } else {
       startTracking();
     }
@@ -261,7 +255,11 @@ export default function Tracking() {
   };
 
   const calculateDistance = (start: { lat: number; lon: number }, end: { lat: number; lon: number }): number => {
-    return haversine(start, end, { unit: 'meter' });
+    return haversine(
+      { latitude: start.lat, longitude: start.lon },
+      { latitude: end.lat, longitude: end.lon },
+      { unit: 'meter' }
+    );
   };
 
   const formatTime = (startTimeMs: number | null, currentTimeMs: number | null): string => {

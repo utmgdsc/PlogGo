@@ -11,7 +11,7 @@ echo -e "${BLUE}Starting PlogGo servers...${NC}"
 # Check if Python virtual environment exists
 if [ ! -d "backend/.venv" ]; then
   echo -e "${BLUE}Creating Python virtual environment...${NC}"
-  cd backend && python -m venv .venv
+  cd backend && python3 -m venv .venv
   cd ..
 fi
 

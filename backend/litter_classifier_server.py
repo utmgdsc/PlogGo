@@ -1,8 +1,8 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
-from utils.classifier import classify_litter
 from utils.ps_helper import load_litter_points
+from detect import detect_litter_from_base64
 import json
 
 # Initialize Flask app
@@ -52,7 +52,7 @@ def classify_image():
         user_id = data.get('user_id', None)  # Optional user ID for logging/tracking
 
         # Classify the litter in the image
-        detection_results = classify_litter(base64_string)
+        detection_results = detect_litter_from_base64(base64_string)
         
         # Calculate points based on the point system
         total_points = sum(POINT_SYSTEM.get(litter_type, 1) * count 
