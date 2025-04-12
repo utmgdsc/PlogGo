@@ -94,6 +94,7 @@ export default function Leaderboard() {
       if (response.data && Array.isArray(response.data.leaderboard) && response.data.leaderboard.length > 0) {
         setData(response.data.leaderboard);
       }
+      console.log("Leaderboard data fetched successfully:", response.data.leaderboard);
     } catch (error) {
       console.log("Error fetching leaderboard:", error);
     } finally {

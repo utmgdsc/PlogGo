@@ -28,6 +28,8 @@ model User {
   collectedLitters Json?             @default("{}")
   streak          Int                @default(0)
   highestStreak   Int                @default(0)
+  stepGoal        Int                @default(1000)
+  distanceGoal    Int                @default(500)
   sessionId       String?            @unique
   badges          UserBadge[]
   ploggingSessions PloggingSession[]

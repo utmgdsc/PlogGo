@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, ScrollView } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Modal, TextInput, StatusBar, Alert, ScrollView, Keyboard, TouchableWithoutFeedback} from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { AnimatedCircularProgress } from 'react-native-circular-progress';
@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
+import { useFocusEffect } from '@react-navigation/native';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -18,25 +19,41 @@ export default function Metrics() {
   const [selectedOption, setSelectedOption] = useState<'Steps' | 'Distance'>('Steps');
   const currentProgress = progress[selectedOption as 'Steps' | 'Distance'];
   const { authState } = useAuth();
-  
+  const [stepsGoal, setStepsGoal] = useState(10000);
+  const [distanceGoal, setDistanceGoal] = useState(500);
+  const [settingsModalVisible, setSettingsModalVisible] = useState(false);
+  const [tempStepsGoal, setTempStepsGoal] = useState('');
+  const [tempDistanceGoal, setTempDistanceGoal] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [stepPercent, setStepPercent] = useState(0);
+  const [distancePercent, setDistancePercent] = useState(0);
   const metrics = {
     Steps: {
       icon: 'footsteps' as 'footsteps',
       unit: 'steps',
-      goal: 10000,
-      percent: (100 * (progress.Steps / 10000)).toFixed(2),
+      goal: stepsGoal,
+      percent: stepPercent.toFixed(2),
       current: progress.Steps,
       color: '#4CAF50'
     },
     Distance: {
       icon: 'walk' as 'walk',
       unit: 'km',
-      goal: 500,
-      percent: (100 * (progress.Distance / 500)).toFixed(2),
+      goal: distanceGoal,
+      percent: distancePercent.toFixed(2),
       current: progress.Distance,
       color: '#2196F3'
     }
   };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchData();
+      return () => {
+        // Clean up function when screen loses focus (if needed)
+      };
+    }, [])
+  );
 
   useEffect(() => {
     fetchData();
@@ -49,23 +66,75 @@ export default function Metrics() {
       console.log(response.data);
 
       const Steps = response.data.steps;
-      const Distance = response.data.distance;
+      const Distance = response.data.distance.toFixed(2);
       const Time = Math.floor(response.data.time / 60);
       const Calories = Math.floor(response.data.calories);
       const Litter = response.data.litter;
       const Curr_Streak = response.data.curr_streak;
       setProgress({ Steps, Distance, Time, Calories, Litter, Curr_Streak });
+
+      // set goals
+      console.log(response.data.stepgoals, response.data.distancegoals);
+      setStepsGoal(response.data.stepgoals);
+      setDistanceGoal(response.data.distancegoals);
+
+      // set percentages
+      const stepPercent = (Steps / response.data.stepgoals) * 100;
+      const distancePercent = (Distance / response.data.distancegoals) * 100;
+      setStepPercent(stepPercent);
+      setDistancePercent(distancePercent);
     } catch (error) {
       console.log(error);
-      // Fallback data for development
-      setProgress({
-        Steps: 65,
-        Distance: 42,
-        Time: 32,
-        Calories: 245,
-        Litter: 10,
-        Curr_Streak: 5
+    }
+  };
+
+  const openSettingsModal = () => {
+    setTempStepsGoal(stepsGoal.toString());
+    setTempDistanceGoal(distanceGoal.toString());
+    setSettingsModalVisible(true);
+  };
+
+  const saveGoals = async () => {
+    try {
+      const newStepsGoal = parseInt(tempStepsGoal, 10);
+      const newDistanceGoal = parseInt(tempDistanceGoal, 10);
+      
+      // Validate inputs
+      if (isNaN(newStepsGoal) || isNaN(newDistanceGoal)) {
+        Alert.alert("Invalid Input", "Please enter valid numbers for your goals.");
+        return;
+      }
+      
+      if (newStepsGoal <= 0 || newDistanceGoal <= 0) {
+        Alert.alert("Invalid Goals", "Goals must be greater than zero.");
+        return;
+      }
+      
+      setIsLoading(true);
+      
+      // Send updated goals to the API
+      console.log(`${API_URL}${API_ROUTES.GOALS}`);
+      const response = await axios.post(`${API_URL}${API_ROUTES.GOALS}`, {
+        stepGoal: newStepsGoal,
+        distanceGoal: newDistanceGoal
       });
+      
+      // Update local state with new goals
+      setStepsGoal(newStepsGoal);
+      setDistanceGoal(newDistanceGoal);
+      
+      // Close the modal
+      setSettingsModalVisible(false);
+      
+      // Refresh data to get updated metrics
+      fetchData();
+      
+      Alert.alert("Success", "Your fitness goals have been updated!");
+    } catch (error) {
+      console.error("Failed to update goals:", error);
+      Alert.alert("Error", "Failed to update goals. Please try again later.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -93,7 +162,7 @@ export default function Metrics() {
       {/* Fixed Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Activity Tracker</Text>
-        <TouchableOpacity style={styles.settingsButton}>
+        <TouchableOpacity style={styles.settingsButton} onPress={openSettingsModal}>
           <Ionicons name="settings-outline" size={24} color="#555" />
         </TouchableOpacity>
       </View>
@@ -284,6 +353,72 @@ export default function Metrics() {
         {/* Spacing at the bottom for better scrolling */}
         <View style={styles.bottomSpacing} />
       </ScrollView>
+      <Modal
+  animationType="slide"
+  transparent={true}
+  visible={settingsModalVisible}
+  onRequestClose={() => setSettingsModalVisible(false)}
+>
+  <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <View style={styles.modalContainer}>
+      <TouchableWithoutFeedback>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Fitness Goals</Text>
+              <TouchableOpacity 
+                onPress={() => setSettingsModalVisible(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.inputContainer}>
+              <View style={styles.inputGroup}>
+                <View style={styles.inputLabelContainer}>
+                  <Ionicons name="footsteps-outline" size={20} color="#4CAF50" />
+                  <Text style={styles.inputLabel}>Steps Goal</Text>
+                </View>
+                <TextInput
+                  style={styles.input}
+                  value={tempStepsGoal}
+                  onChangeText={setTempStepsGoal}
+                  keyboardType="numeric"
+                  placeholder="Enter daily steps goal"
+                  placeholderTextColor="#999"
+                />
+              </View>
+              
+              <View style={styles.inputGroup}>
+                <View style={styles.inputLabelContainer}>
+                  <Ionicons name="walk-outline" size={20} color="#2196F3" />
+                  <Text style={styles.inputLabel}>Distance Goal (km)</Text>
+                </View>
+                <TextInput
+                  style={styles.input}
+                  value={tempDistanceGoal}
+                  onChangeText={setTempDistanceGoal}
+                  keyboardType="numeric"
+                  placeholder="Enter daily distance goal"
+                  placeholderTextColor="#999"
+                />
+              </View>
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.saveButton}
+              onPress={saveGoals}
+              disabled={isLoading}
+            >
+              <Text style={styles.saveButtonText}>
+                {isLoading ? "Saving..." : "Save Goals"}
+              </Text>
+            </TouchableOpacity>
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
     </SafeAreaView>
   );
 }
@@ -520,5 +655,77 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 30,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    width: '85%',
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontFamily: 'Poppins-Bold',
+    fontSize: 20,
+    color: '#333',
+  },
+  closeButton: {
+    padding: 5,
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  inputLabel: {
+    fontFamily: 'Poppins-Bold',
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 8,
+  },
+  input: {
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 10,
+    paddingHorizontal: 15,
+    fontSize: 16,
+    fontFamily: 'OpenSans-Regular',
+    backgroundColor: '#f9f9f9',
+  },
+  saveButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    color: 'white',
+    fontFamily: 'Poppins-Bold',
+    fontSize: 16,
   },
 });
