@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { API_URL, API_ROUTES } from '../config/env';
 
 interface AuthProps{
     authState?: {token: string | null; authenticated: boolean | null};
@@ -12,7 +13,6 @@ interface AuthProps{
 
 const TOKEN_KEY = 'JWT_SECRET_KEY';
 const USERID_KEY = 'USER_ID';
-export const API_URL = process.env.EXPO_PUBLIC_BASE_URL;
 const AuthContext = createContext<AuthProps>({});
 
 export const useAuth = () => {
@@ -55,7 +55,7 @@ export const AuthProvider = ({children}: any) => {
 
     const register = async (email: string, password: string) => {
         try {
-            await axios.post(`${API_URL}/register`, { email, password });
+            await axios.post(`${API_URL}${API_ROUTES.REGISTER}`, { email, password });
             login(email, password);
         } catch (e) {
             return {error: true, msg: (e as any).response.data.message};
@@ -63,9 +63,9 @@ export const AuthProvider = ({children}: any) => {
     };
 
     const login = async (email: string, password: string) => {
-        console.log(`${API_URL}/login`)
+        console.log(`${API_URL}${API_ROUTES.LOGIN}`)
         try {
-            const result = await axios.post(`${API_URL}/login`, { email, password });
+            const result = await axios.post(`${API_URL}${API_ROUTES.LOGIN}`, { email, password });
             setAuthState({
                 token: result.data.access_token,
                 authenticated: true,
@@ -113,3 +113,6 @@ export const AuthProvider = ({children}: any) => {
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
+
+// Default export for the AuthProvider
+export default AuthProvider;

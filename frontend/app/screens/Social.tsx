@@ -1,7 +1,7 @@
 import { Text, View, FlatList, StyleSheet, Image, Dimensions, ActivityIndicator } from "react-native";
 import axios from 'axios';
 import { useEffect, useState } from 'react';
-import { API_URL } from '../context/AuthContext';
+import { API_URL, API_ROUTES } from '../config/env';
 import { useFonts } from 'expo-font';
 import { SplashScreen } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -90,7 +90,7 @@ export default function Leaderboard() {
 
   const fetchData = async () => {
     try {
-      const response = await axios.get(`${API_URL}/leaderboard?count=10`);
+      const response = await axios.get(`${API_URL}${API_ROUTES.LEADERBOARD}?count=10`);
       if (response.data && Array.isArray(response.data.leaderboard) && response.data.leaderboard.length > 0) {
         setData(response.data.leaderboard);
       }

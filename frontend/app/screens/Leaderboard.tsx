@@ -1,10 +1,10 @@
 import { Text, View, FlatList, StyleSheet, Image, Dimensions, ActivityIndicator } from "react-native";
 import axios from 'axios';
 import { useEffect, useState } from 'react';
-import { API_URL } from '../context/AuthContext';
 import { useFonts } from 'expo-font';
 import { SplashScreen } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { API_URL } from '../context/AuthContext';
 
 // User profile interface
 interface UserProfile {
@@ -90,10 +90,10 @@ export default function Leaderboard() {
 
   const fetchData = async () => {
     try {
-      // const response = await axios.get(`${API_URL}/leaderboard?count=10`);
-      // if (response.data && Array.isArray(response.data.leaderboard) && response.data.leaderboard.length > 0) {
-      //   setData(response.data.leaderboard);
-      // }
+      const response = await axios.get(`${API_URL}/api/leaderboard?metric=${METRIC}&count=10`);
+      if (response.data && Array.isArray(response.data.leaderboard) && response.data.leaderboard.length > 0) {
+        setData(response.data.leaderboard);
+      }
     } catch (error) {
       console.log("Error fetching leaderboard:", error);
     } finally {

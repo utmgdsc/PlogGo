@@ -1,0 +1,94 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String             @id @default(uuid())
+  email           String             @unique
+  password        String
+  name            String?
+  description     String?
+  pfp             String?
+  totalSteps      Int                @default(0)
+  totalDistance   Float              @default(0)
+  totalTime       Int                @default(0)
+  totalPoints     Int                @default(0)
+  totalLitters    Int                @default(0)
+  collectedLitters Json?             @default("{}")
+  streak          Int                @default(0)
+  highestStreak   Int                @default(0)
+  sessionId       String?            @unique
+  badges          UserBadge[]
+  ploggingSessions PloggingSession[]
+
+  @@map("users")
+}
+
+model Badge {
+  id                String      @id @default(uuid())
+  name              String      @unique
+  description       String
+  distancesRequired Float?
+  stepsRequired     Int?
+  users             UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  id        String   @id @default(uuid())
+  userId    String
+  badgeId   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  badge     Badge    @relation(fields: [badgeId], references: [id])
+
+  @@unique([userId, badgeId])
+  @@map("user_badges")
+}
+
+model PloggingSession {
+  id                String    @id @default(uuid())
+  sessionId         String    @unique
+  userId            String
+  startTime         DateTime
+  endTime           DateTime?
+  elapsedTime       Int?
+  routes            Json?
+  distancesTravelled Float?
+  steps             Int?
+  points            Int?      @default(0)
+  litterCollected   Json?     @default("{}")
+  user              User      @relation(fields: [userId], references: [id])
+
+  @@map("plogging_sessions")
+}
+
+model TokenBlacklist {
+  id        String   @id @default(uuid())
+  jti       String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("token_blacklist")
+}
+
+model Challenge {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  points      Int
+  createdAt   DateTime @default(now())
+
+  @@map("challenges")
+}
