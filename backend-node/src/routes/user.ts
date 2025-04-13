@@ -271,7 +271,7 @@ router.get('/metrics', authenticateToken, async (req: Request, res: Response) =>
     
     return res.status(200).json({
       time: totalTime,
-      distance: totalDistance,
+      distance: totalDistance / 10000,
       steps: totalSteps,
       calories: totalSteps * 0.04,
       curr_streak: user.streak,
