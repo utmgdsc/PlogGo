@@ -43,6 +43,11 @@ model Badge {
   description       String
   distancesRequired Float?
   stepsRequired     Int?
+  littersRequired   Int?
+  pointsRequired    Int?
+  timeRequired      Int?
+  streakRequired    Int?
+  imageUrl          String      @default("https://placehold.co/200x200/4CAF50/FFFFFF?text=Badge")
   users             UserBadge[]
 
   @@map("badges")
