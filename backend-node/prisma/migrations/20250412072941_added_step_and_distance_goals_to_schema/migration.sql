@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "users" ADD COLUMN     "distanceGoal" INTEGER NOT NULL DEFAULT 500,
+ADD COLUMN     "stepGoal" INTEGER NOT NULL DEFAULT 1000;

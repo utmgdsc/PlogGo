@@ -163,11 +163,69 @@ router.get('/badge', authenticateToken, async (req: Request, res: Response) => {
   }
 });
 
+// update user goals
+router.post('/goals', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    console.log('Updating user goals...');
+    const userId = req.user?.userId;
+    
+    if (!userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+    
+    let { stepGoal, distanceGoal } = req.body;
+    
+    // Find user
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Validate input
+    if (stepGoal < 0 || distanceGoal < 0) {
+      console.log('Invalid goals provided:', stepGoal, distanceGoal);
+      return res.status(400).json({ message: 'Goals must be non-negative' });
+    }
+    if (!stepGoal && !distanceGoal) {
+      console.log('No goals provided');
+      return res.status(400).json({ message: 'At least one goal must be provided' });
+    }
+
+    // if one goal is not provided, set it to the current value
+    if (!stepGoal) {
+      stepGoal = user.stepGoal;
+    }
+    if (!distanceGoal) {
+      distanceGoal = user.distanceGoal;
+    }
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Update goals
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        stepGoal,
+        distanceGoal
+      }
+    });
+    
+    return res.status(200).json({ message: 'Goals updated successfully' });
+  } catch (error) {
+    console.error('Update goals error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Get user metrics
 router.get('/metrics', authenticateToken, async (req: Request, res: Response) => {
   try {
     const userId = req.user?.userId;
-    
     if (!userId) {
       return res.status(401).json({ message: 'User not authenticated' });
     }
@@ -180,15 +238,47 @@ router.get('/metrics', authenticateToken, async (req: Request, res: Response) =>
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+
+    // get all user's plogging sessions for the day
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+    const ploggingSessions = await prisma.ploggingSession.findMany({
+      where: {
+        userId: userId,
+        startTime: {
+          gte: startOfDay,
+          lt: endOfDay
+        }
+      }
+    });
+
+    // Calculate total time, distance, and steps for the day by summing up the plogging sessions
+    const totalTime = ploggingSessions.reduce((acc, session) => {
+      if (session.endTime) {
+        return acc + ((session.endTime.getTime() - session.startTime.getTime()) / 1000);
+      }
+      return acc;
+    }, 0);
+    const totalDistance = ploggingSessions.reduce((acc, session) => acc + (session.distancesTravelled ?? 0), 0);
+    const totalSteps = ploggingSessions.reduce((acc, session) => acc + (session.steps ?? 0), 0);
+    const totalLitters = ploggingSessions.reduce((acc, session) => {
+    const litterCollected = session.litterCollected && typeof session.litterCollected === 'object' ? session.litterCollected : {};
+      return acc + Object.keys(litterCollected).length;
+    }, 0);
+    const totalPoints = ploggingSessions.reduce((acc, session) => acc + (session.points ?? 0), 0);
     
     return res.status(200).json({
-      time: user.totalTime,
-      distance: user.totalDistance,
-      steps: user.totalSteps,
-      calories: user.totalSteps * 0.04,
+      time: totalTime,
+      distance: totalDistance,
+      steps: totalSteps,
+      calories: totalSteps * 0.04,
       curr_streak: user.streak,
-      points: user.totalPoints,
-      litter: user.totalLitters
+      points: totalPoints,
+      litter: totalLitters,
+      stepgoals: user.stepGoal,
+      distancegoals: user.distanceGoal,
     });
   } catch (error) {
     console.error('Get metrics error:', error);

@@ -9,14 +9,15 @@ export const API_ROUTES = {
   REGISTER: '/api/register',
   LOGOUT: '/api/logout',
   PROFILE: '/api/profile',
-  METRICS: '/api/metrics',
+  METRICS: '/api/user/metrics',
   LEADERBOARD: '/api/leaderboard',
   USER: '/api/user',
   SESSIONS: '/api/sessions',
   SESSIONS_HISTORY: '/api/sessions-history',
   SESSIONS_LATEST: '/api/sessions-history/latest',
   DAILY_CHALLENGE: '/api/daily-challenge',
-  LITTER_CLASSIFICATION: '/api/classify-litter'
+  LITTER_CLASSIFICATION: '/api/classify-litter',
+  GOALS: '/api/user/goals'
 };
 
 // WebSocket URL - now using the same server as the HTTP API
